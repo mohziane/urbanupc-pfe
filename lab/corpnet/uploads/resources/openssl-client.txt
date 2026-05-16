@@ -1,0 +1,22 @@
+#Fichier openssl.cnf
+
+
+[req]
+distinguished_name      = req_distinguished_name
+
+[req_distinguished_name]
+countryName                     = Pays
+countryName_default             = FR
+localityName                    = Ville
+localityName_default            = Paris
+stateOrProvinceName             = Etat ou departement
+stateOrProvinceName_default     = 75 
+organizationName        	= Organisation
+organizationName_default        = Rene Descartes
+organizationalUnitName  	= Secure
+organizationalUnitName_default  = PKI 
+commonName                      = Nom ou URL
+commonName_max                  = 64
+emailAddress                    = Adresse Email
+emailAddress_max                = 40
+

@@ -1,0 +1,100 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// AD-backed users. We mirror the LDAP user on first login so we can attach
+// app-level resources to a stable internal ID.
+model User {
+  id           String     @id @default(uuid())
+  samAccount   String     @unique
+  displayName  String
+  email        String?    @unique
+  role         Role       @default(STUDENT)
+  createdAt    DateTime   @default(now())
+  lastLoginAt  DateTime?
+
+  enrollments  Enrollment[]
+  documents    Document[]
+  grades       Grade[]
+}
+
+enum Role {
+  STUDENT
+  FACULTY
+  ADMIN
+}
+
+model Course {
+  id          String       @id @default(uuid())
+  code        String       @unique  // e.g. "M1-CYBER-101"
+  title       String
+  description String
+  ects        Int          @default(3)
+  semester    String                          // "S1" / "S2"
+  createdAt   DateTime     @default(now())
+
+  enrollments Enrollment[]
+  slots       ScheduleSlot[]
+  grades      Grade[]
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+}
+
+model ScheduleSlot {
+  id         String   @id @default(uuid())
+  courseId   String
+  dayOfWeek  Int      // 1=Monday..7=Sunday
+  startTime  String   // "09:00"
+  endTime    String   // "12:00"
+  room       String
+  weekParity Int      @default(0) // 0=every, 1=odd, 2=even
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+// Personal student documents — strict ownership enforced at query level
+model Document {
+  id          String   @id @default(uuid())
+  ownerId     String
+  filename    String   // sanitised display name
+  storageKey  String   @unique // random key, never user-controlled
+  mimeType    String
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+}
+
+model Grade {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  value     Float    // /20
+  comment   String?
+  postedAt  DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+}

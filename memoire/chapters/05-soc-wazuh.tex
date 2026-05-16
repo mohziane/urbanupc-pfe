@@ -1,0 +1,176 @@
+\chapter{Le SOC : Wazuh sur le lab}
+\label{ch:soc-wazuh}
+
+Ce chapitre décrit le SOC du lab~: comment Wazuh est déployé, ce
+qu'il surveille, et ce qu'il a détecté pendant la période de
+tests. C'est aussi la principale source de preuves pour le
+dossier d'homologation~: les règles actives, les agents
+connectés, les alertes générées sont autant d'éléments que
+HOMO-CI va collecter.
+
+\section{Pourquoi Wazuh}
+
+Trois raisons~:
+
+\begin{enumerate}
+  \item \textbf{C'est open source}, donc auditable, modifiable,
+    sans coût de licence. Compatible avec le crédit étudiant
+    Azure.
+  \item \textbf{C'est tout-en-un.} Manager, indexer (basé sur
+    OpenSearch), dashboard~: tout est dans une seule VM en
+    déploiement all-in-one. Pas besoin d'orchestrer plusieurs
+    machines pour un lab.
+  \item \textbf{La base de règles est très fournie}~: par défaut,
+    Wazuh livre plusieurs centaines de règles couvrant SSH,
+    Windows Event Log, Docker, nginx, Apache, PostgreSQL,
+    Active Directory.
+\end{enumerate}
+
+\section{Installation et version}
+
+Wazuh est installé en mode \emph{all-in-one} sur \texttt{vm-siem01}
+via le script officiel~:
+
+\begin{lstlisting}[language=bash,caption={Installation Wazuh
+all-in-one (extrait).}]
+curl -sO https://packages.wazuh.com/4.9/wazuh-install.sh
+sudo bash wazuh-install.sh -a
+\end{lstlisting}
+
+Version installée~: \textbf{Wazuh 4.9.2-1}. Le pinning de la
+version est important~: le repository \texttt{4.x} sert toujours
+la dernière minor, et le manager 4.9.2 refuse les agents 4.10.x
+(message d'erreur peu clair lors de l'enrôlement). Le pin se fait
+côté agent au moment du \texttt{apt install}~:
+
+\begin{lstlisting}[language=bash,caption={Installation d'un agent
+sur Ubuntu.}]
+sudo apt install wazuh-agent=4.9.2-1
+\end{lstlisting}
+
+\section{Agents déployés}
+
+\begin{table}[h]
+\centering
+\caption{Agents Wazuh dans le lab.}
+\label{tab:agents}
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Hôte} & \textbf{OS} & \textbf{Sources surveillées} \\
+\midrule
+vm-web01 & Ubuntu 22.04 & syslog, auth.log, nginx, Docker, apps PHP \\
+vm-dc01 & Windows Server 2022 & Security event log, Sysmon, AD-related \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Le SIEM lui-même (\texttt{vm-siem01}) n'a pas d'agent~: il s'auto-
+surveille via ses propres logs internes.
+
+\section{Sources de logs côté serveur web}
+
+L'agent sur \texttt{vm-web01} envoie à Wazuh~:
+
+\begin{itemize}
+  \item \texttt{/var/log/auth.log} et \texttt{/var/log/syslog}
+    (SSH, sudo, cron, systemd).
+  \item \texttt{/var/log/nginx/access.log} et
+    \texttt{/var/log/nginx/error.log} (trafic HTTP/HTTPS).
+  \item \texttt{/var/log/corpnet/internal/maformation/maformation.log}
+    et \texttt{macandidature/macandidature.log} (logs applicatifs
+    JSON).
+  \item Les événements Docker via le module
+    \texttt{docker-listener} (création/arrêt/exec dans les
+    containers).
+\end{itemize}
+
+\section{Sources de logs côté AD}
+
+Sur \texttt{vm-dc01}, l'agent Wazuh récupère le
+\emph{Security Event Log} Windows. Les événements clés
+surveillés~:
+
+\begin{itemize}
+  \item \textbf{4624} (logon) / \textbf{4625} (échec de logon)~:
+    détection de brute force.
+  \item \textbf{4768} / \textbf{4769} / \textbf{4771} (Kerberos)~:
+    détection de \emph{Kerberoasting}, AS-REP Roasting.
+  \item \textbf{4720} / \textbf{4732}~: création d'utilisateur,
+    ajout à un groupe privilégié.
+  \item \textbf{4662}~: opérations sur les objets AD (utile pour
+    détecter une tentative de \emph{DCSync}).
+\end{itemize}
+
+\section{Règles de détection : built-in et custom}
+
+Wazuh fournit plusieurs centaines de règles par défaut. Celles qui
+n'étaient pas couvertes ont été ajoutées sous forme de fichiers
+\texttt{local\_rules.xml}~:
+
+\begin{itemize}
+  \item Détection des injections SQL dans les logs nginx (motifs
+    \texttt{UNION SELECT}, \texttt{OR 1=1}, etc.).
+  \item Détection XSS sur les paramètres POST (balises
+    \texttt{<script>}, événements \texttt{onerror}).
+  \item Détection IDOR via énumération de paramètres
+    \texttt{conversation\_id}.
+  \item Détection \texttt{docker exec} initié depuis un container
+    web (corrélation entre l'événement Docker et le PID
+    parent).
+  \item Détection \emph{Kerberoasting} (événement 4769 avec
+    chiffrement RC4 sur un compte de service).
+\end{itemize}
+
+\section{Ce que le SOC a vu pendant les tests}
+
+Sur la période d'exercices (scénarios d'attaque rejoués pour
+valider la détection), Wazuh a généré \textbf{927 alertes}.
+Décomposition~:
+
+\begin{table}[h]
+\centering
+\caption{Alertes Wazuh par catégorie (période de tests).}
+\label{tab:alertes}
+\small
+\begin{tabular}{lr}
+\toprule
+\textbf{Catégorie} & \textbf{Nombre} \\
+\midrule
+SSH brute force / scans & 412 \\
+Attaques web (XSS, SQLi, IDOR) & 287 \\
+AD (Kerberoasting, énumération) & 156 \\
+Docker (exec suspect, escape) & 38 \\
+Autres (sudo, file integrity) & 34 \\
+\midrule
+\textbf{Total} & \textbf{927} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ces chiffres ne sont pas un résultat scientifique~: ils dépendent
+des scénarios joués et de leur fréquence. Mais ils valident que
+la chaîne (agent~$\to$~manager~$\to$~indexer~$\to$~dashboard) fonctionne et
+que les règles déclenchent comme attendu.
+
+\section{Ce qu'il reste à faire côté SOC}
+
+Pour rester honnête sur le périmètre~:
+
+\begin{itemize}
+  \item Pas de tuning avancé des règles~: il y a probablement
+    des faux positifs qu'on n'a pas filtrés.
+  \item Pas d'enrichissement avec des IOC externes (MISP,
+    threat intel)~: les indicateurs viennent uniquement de la
+    base Wazuh.
+  \item Pas de réponse automatique (\emph{Active Response})
+    activée, pour ne pas casser le lab pendant les tests.
+\end{itemize}
+
+\begin{takeaway}
+Le SOC du lab est volontairement simple~: Wazuh 4.9.2 all-in-one,
+deux agents, règles built-in + une dizaine de règles custom.
+C'est suffisant pour générer des preuves d'audit
+exploitables par HOMO-CI (état des agents, règles actives,
+nombre d'alertes par catégorie).
+\end{takeaway}

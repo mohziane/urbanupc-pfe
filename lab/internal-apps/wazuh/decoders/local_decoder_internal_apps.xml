@@ -1,0 +1,9 @@
+<!--
+  Wazuh JSON decoder for MaFormation + MaCandidature pino logs.
+  The agent's <log_format>json</log_format> already decodes each line; this
+  decoder just lets us tag the source so rules can filter on it.
+-->
+<decoder name="internal-apps-json">
+  <prematch type="pcre2">^\{"level":[0-9]+.*"app":"(maformation|macandidature)"</prematch>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>

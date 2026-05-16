@@ -1,0 +1,66 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Secrets et certificats — ne JAMAIS commit
+.env
+.env.local
+*.key
+*.crt
+*.pem
+*.pfx
+*.p12
+ssl/
+**/secrets/*.txt
+**/secrets/*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+.next/
+dist/
+
+# Logs
+*.log
+logs/
+
+# Builds (PDF/HTML générés)
+**/build/
+pipeline/build/
+memoire/build/
+memoire/*.aux
+memoire/*.bbl
+memoire/*.blg
+memoire/*.fdb_latexmk
+memoire/*.fls
+memoire/*.lof
+memoire/*.log
+memoire/*.lot
+memoire/*.out
+memoire/*.synctex.gz
+memoire/*.toc
+ebios-rm/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Caches divers
+.coverage
+htmlcov/

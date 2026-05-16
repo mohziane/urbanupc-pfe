@@ -1,0 +1,423 @@
+# Contexte statique du dossier d'homologation HOMO-CI
+#
+# Les éléments de ce fichier sont **institutionnels** ou **organisationnels** :
+# ils ne sont pas auto-collectés depuis le SI mais doivent figurer dans le
+# dossier d'homologation conformément au guide ANSSI 9 étapes.
+#
+# Les éléments **dynamiques** (NSG, CVE, comptes AD, règles SIEM…) sont
+# auto-injectés depuis l'EvidenceStore lors du rendu et ne figurent PAS
+# dans ce fichier.
+#
+# Ce fichier est versionné dans git. Toute modification fait l'objet d'une
+# PR avec review.
+
+# ════════════════════════════════════════════════════════════════
+# Identité du SI homologué
+# ════════════════════════════════════════════════════════════════
+si:
+  nom: "UrbanUpC"
+  description: "Espace Numérique de Travail universitaire"
+  hebergeur: "Microsoft Azure — Sweden Central"
+  resource_group: "RG-PFE-SOC"
+  reseau_virtuel: "vnet-pfe"
+  cidr: "10.0.0.0/16"
+
+# ════════════════════════════════════════════════════════════════
+# Étape 1 — Périmètre
+# ════════════════════════════════════════════════════════════════
+perimetre:
+  fonctionnel:
+    - "Portail public CorpNet (vitrine, candidature, annonces)"
+    - "MaFormation — portail étudiant authentifié par LDAP"
+    - "MaCandidature — espace candidat avec auth locale"
+    - "Domaine Active Directory corpnet.local"
+    - "SOC Wazuh 4.9.2 + 11 règles de détection personnalisées"
+  exclusions:
+    - "Postes utilisateurs finaux (homologation distincte)"
+    - "Infrastructure Microsoft Azure (couverte par certification fournisseur)"
+    - "Services tiers de fédération (RENATER, eduGAIN) — non intégrés"
+    - "Prestataires de paiement — hors scope"
+  classification:
+    sensibilite: "Modérée à forte (données personnelles + parcours scolaire)"
+    exposition: "Forte (24×7 Internet)"
+    criticite: "Forte (indisponibilité = blocage candidatures)"
+    niveau_cible: "Standard renforcé (ASVS L2 + recommandations ANSSI)"
+
+# ════════════════════════════════════════════════════════════════
+# Étape 2 — Type de démarche
+# ════════════════════════════════════════════════════════════════
+demarche:
+  type: 2
+  intitule: "Système d'usage courant, sensibilité modérée à forte"
+  duree_homologation_mois: 9
+  justification: |
+    Le SI traite des données personnelles au sens du RGPD (état civil,
+    parcours scolaire, notes, candidatures) mais pas de données classifiées
+    Diffusion Restreinte ou supérieur. Il assure une mission de service
+    public sans relever de la LPM. La démarche de type 2 est la mieux
+    adaptée et permet une homologation de durée standard de trois ans après
+    une période initiale de neuf mois sous conditions PACS.
+
+# ════════════════════════════════════════════════════════════════
+# Étape 3 — Acteurs
+# ════════════════════════════════════════════════════════════════
+acteurs:
+  - role: "AQSSI titulaire"
+    nom: "[À compléter]"
+    fonction: "Autorité Qualifiée pour la Sécurité des SI"
+    responsabilite: "Prononce la décision d'homologation, engage l'établissement"
+  - role: "AQSSI suppléant"
+    nom: "[À compléter]"
+    fonction: "Continuité en cas d'absence"
+    responsabilite: "Représente l'AQSSI titulaire"
+  - role: "RSSI"
+    nom: "[À compléter]"
+    fonction: "Responsable de la Sécurité des SI"
+    responsabilite: "Conduit la démarche, garantit la qualité technique"
+  - role: "Risk Manager"
+    nom: "[À compléter — auteur du dossier]"
+    fonction: "Pilote de l'analyse de risque"
+    responsabilite: "Coordonne l'analyse, rédige le dossier, opère le pipeline HOMO-CI"
+  - role: "DPO"
+    nom: "[À compléter]"
+    fonction: "Délégué à la Protection des Données"
+    responsabilite: "Valide les éléments relatifs aux données personnelles"
+  - role: "Architecte SI"
+    nom: "[À compléter]"
+    fonction: "Architecture du système d'information"
+    responsabilite: "Valide l'inventaire des actifs et la cartographie"
+  - role: "Responsable SOC"
+    nom: "[À compléter]"
+    fonction: "Pilotage du SOC"
+    responsabilite: "Valide les scénarios opérationnels et la couverture de détection"
+
+# ════════════════════════════════════════════════════════════════
+# Étape 4 — Cartographie (populations et données)
+# ════════════════════════════════════════════════════════════════
+populations:
+  - profil: "Visiteur anonyme"
+    volume: "Très élevé (variable)"
+    donnees: "Pages publiques uniquement"
+    authn: "Aucune"
+  - profil: "Candidat"
+    volume: "~5 000 / campagne"
+    donnees: "Identité, CV, lettre, relevés"
+    authn: "Compte local + vérification email"
+  - profil: "Étudiant"
+    volume: "~10 000 actifs"
+    donnees: "Notes, documents personnels, EDT"
+    authn: "LDAP/Kerberos corpnet.local"
+  - profil: "Personnel administratif et enseignant"
+    volume: "~500"
+    donnees: "Données étudiantes, gestion académique"
+    authn: "LDAP/Kerberos + RBAC"
+
+donnees:
+  - categorie: "Identité civile candidat"
+    sensibilite: "Forte (RGPD art. 6)"
+    volume: "~5 000 / campagne"
+    retention: "1 an si non admis ; durée scolarité si admis"
+    localisation: "macandidature_db"
+  - categorie: "Pièces justificatives candidat"
+    sensibilite: "Forte"
+    volume: "~25 000 fichiers / campagne"
+    retention: "Idem identité"
+    localisation: "Volume Docker macandidature_uploads"
+  - categorie: "Identité civile étudiant"
+    sensibilite: "Forte"
+    volume: "~10 000"
+    retention: "Durée scolarité + 10 ans"
+    localisation: "AD corpnet.local + maformation_db"
+  - categorie: "Notes et résultats"
+    sensibilite: "Forte (intégrité critique)"
+    volume: "~50 000 entrées/an"
+    retention: "Durée scolarité + 50 ans"
+    localisation: "maformation_db"
+  - categorie: "Documents personnels étudiants"
+    sensibilite: "Modérée"
+    volume: "Variable"
+    retention: "Discrétion étudiante"
+    localisation: "Volume Docker maformation_uploads"
+  - categorie: "Journaux d'audit Wazuh"
+    sensibilite: "Modérée"
+    volume: "~12 Mo/jour"
+    retention: "1 an actif + 6 mois archive"
+    localisation: "vm-siem01 indexer"
+
+# ════════════════════════════════════════════════════════════════
+# Étape 5 — Référence à l'analyse de risque EBIOS RM
+# ════════════════════════════════════════════════════════════════
+ebios:
+  reference: "EBIOS-RM-URBANUPC-2026-V1.0"
+  valeurs_metier: 7
+  biens_supports: 10
+  evenements_redoutes: 8
+  sources_de_risque: 6
+  objectifs_vises: 8
+  scenarios_strategiques: 6
+  scenarios_operationnels: 9
+  risques_critiques_avant_pacs: 2
+  risques_critiques_apres_pacs: 0
+  risques_residuels:
+    - code: "RR-1"
+      designation: "CVE-2021-41773 conservée pour démonstration pédagogique"
+      niveau: 6
+      echeance: "12 mois"
+      justification: "Posture pédagogique — patch hors scope projet, mitigation par DDoS Standard + détection SIEM"
+    - code: "RR-2"
+      designation: "Compromission par ancien personnel"
+      niveau: 6
+      echeance: "3 mois"
+      justification: "Risque structurel — mitigation par MFA + procédure de off-boarding"
+    - code: "RR-3"
+      designation: "DSRM password récupérable via secretsdump"
+      niveau: 4
+      echeance: "6 mois"
+      justification: "Mitigation par chiffrement sauvegardes (différée hors PACS)"
+
+# ════════════════════════════════════════════════════════════════
+# Étape 6 — Mesures de sécurité (PSSI résumée)
+# ════════════════════════════════════════════════════════════════
+pssi:
+  principes:
+    - "Moindre privilège : chaque compte ne dispose que des droits strictement nécessaires."
+    - "Séparation des fonctions : administration, audit et validation portés par des comptes distincts."
+    - "Traçabilité : toute action sur un compte à privilège est journalisée."
+    - "Cycle de vie maîtrisé : révocation des comptes dans 24h après cessation."
+  cryptographie:
+    - domaine: "Hachage de mot de passe"
+      algo: "Argon2id (m=19 456, t=2, p=1)"
+      justification: "OWASP password storage cheatsheet 2024"
+    - domaine: "Signature de jeton de session"
+      algo: "HMAC-SHA-256 (clé 256 bits)"
+      justification: "JWT HS256"
+    - domaine: "TLS — flux Internet"
+      algo: "TLS 1.2/1.3 avec suites forward-secret"
+      justification: "RGS v2.0"
+    - domaine: "TLS — flux internes"
+      algo: "TLS 1.2/1.3 + CA interne dédiée"
+      justification: "Hygiène"
+    - domaine: "Chiffrement au repos"
+      algo: "AES-256 géré par Azure Storage Service Encryption"
+      justification: "Plateforme"
+  sanctions: |
+    Le non-respect de la PSSI peut entraîner, selon la nature et la gravité du
+    manquement : pour un personnel, avertissement, mesure disciplinaire ou retrait
+    des droits d'accès ; pour un étudiant ou candidat, suspension ou résiliation
+    du compte, signalement aux services compétents en cas d'infraction pénale ;
+    pour un prestataire, application des clauses contractuelles, et le cas échéant
+    rupture du contrat.
+
+# ════════════════════════════════════════════════════════════════
+# Étape 7 — Audit (cadre)
+# ════════════════════════════════════════════════════════════════
+audit:
+  cadre: "Audit technique interne gray-box, mai 2026, conforme guides ANSSI"
+  referentiels:
+    - "MITRE ATT&CK v14.1"
+    - "OWASP ASVS v4.0.3 niveau L2"
+    - "OWASP WSTG v4.2"
+    - "CIS Docker Benchmark v1.6"
+    - "ANSSI Recommandations Active Directory (DAT-NT-17)"
+  posture: "gray-box"
+  scenarios_testes: 6
+  resultat_synthese: "Détection conforme aux attendus EBIOS RM ; deux vulnérabilités plantées détectables ; PACS prioritaires définis"
+
+# ════════════════════════════════════════════════════════════════
+# Étape 9 — Suivi et KRI
+# ════════════════════════════════════════════════════════════════
+kri:
+  - code: "KRI-1"
+    indicateur: "Échecs d'authentification"
+    mesure: "Nb événements auth.login_failed par jour"
+    seuil: "> 500 / jour"
+    frequence: "Quotidienne"
+    responsable: "SOC"
+  - code: "KRI-2"
+    indicateur: "Tentatives de brute force"
+    mesure: "Nb événements 100302"
+    seuil: ">= 1 / 24h"
+    frequence: "Quotidienne"
+    responsable: "SOC"
+  - code: "KRI-3"
+    indicateur: "Container escape suspects"
+    mesure: "Nb événements 100351 non whitelistés"
+    seuil: ">= 1 / mois"
+    frequence: "Mensuelle"
+    responsable: "SOC"
+  - code: "KRI-4"
+    indicateur: "Comptes inactifs"
+    mesure: "Nb comptes AD non utilisés > 90 jours"
+    seuil: ">= 10"
+    frequence: "Trimestrielle"
+    responsable: "Identité"
+  - code: "KRI-5"
+    indicateur: "Délai de off-boarding"
+    mesure: "Délai moyen de révocation post-départ"
+    seuil: "> 5 jours"
+    frequence: "Trimestrielle"
+    responsable: "RH + Identité"
+  - code: "KRI-6"
+    indicateur: "Couverture MFA admin"
+    mesure: "% de comptes administrateurs avec MFA"
+    seuil: "< 100%"
+    frequence: "Mensuelle"
+    responsable: "Identité"
+  - code: "KRI-7"
+    indicateur: "CVE critiques"
+    mesure: "Nb CVE CVSS >= 7 non patchées"
+    seuil: ">= 1 / 30 j"
+    frequence: "Hebdomadaire"
+    responsable: "Infra"
+  - code: "KRI-8"
+    indicateur: "MTTR alertes critiques"
+    mesure: "Délai moyen de traitement Wazuh L>=10"
+    seuil: "> 4h"
+    frequence: "Mensuelle"
+    responsable: "SOC"
+  - code: "KRI-9"
+    indicateur: "Couverture sauvegardes"
+    mesure: "% bases sauvegardées avec restore test"
+    seuil: "< 100%"
+    frequence: "Trimestrielle"
+    responsable: "Infra"
+  - code: "KRI-10"
+    indicateur: "Avancement PACS"
+    mesure: "% actions PACS livrées dans le délai"
+    seuil: "< 80%"
+    frequence: "Mensuelle"
+    responsable: "Risk Manager"
+  - code: "KRI-11"
+    indicateur: "Faux positifs SIEM"
+    mesure: "Ratio alertes FP / total"
+    seuil: "> 30%"
+    frequence: "Mensuelle"
+    responsable: "SOC"
+  - code: "KRI-12"
+    indicateur: "Régressions de détection"
+    mesure: "Nb scénarios audit en échec lors du rejeu CI"
+    seuil: ">= 1"
+    frequence: "Mensuelle (auto)"
+    responsable: "SOC"
+
+# ════════════════════════════════════════════════════════════════
+# PACS — Plan d'Amélioration Continue de la Sécurité (résumé)
+# ════════════════════════════════════════════════════════════════
+pacs:
+  - code: "R1"
+    action: "Migration des applications internes vers vm-internal01 dédiée"
+    priorite: 2
+    effort_jh: 1
+    echeance: "D+14"
+    statut: "En cours (quota Azure)"
+  - code: "R2"
+    action: "Suppression vulnérabilité Docker socket dans macandidature"
+    priorite: 1
+    effort_jh: 2
+    echeance: "D+3"
+    statut: "✅ Appliqué (15/05/2026)"
+  - code: "R3"
+    action: "Read-only filesystem sur maformation_app (via migrator)"
+    priorite: 2
+    effort_jh: 1.5
+    echeance: "D+7"
+    statut: "✅ Appliqué (15/05/2026)"
+  - code: "R4"
+    action: "Migration des secrets vers Azure Key Vault"
+    priorite: 4
+    effort_jh: 2.5
+    echeance: "D+21"
+    statut: "Planifié"
+  - code: "R5.1"
+    action: "Activation LDAPS (port 636)"
+    priorite: 2
+    effort_jh: 1
+    echeance: "D+7"
+    statut: "Infrastructure prête (AD CS requis pour app)"
+  - code: "R5.2"
+    action: "Révocation compte svc.backup"
+    priorite: 1
+    effort_jh: 0.5
+    echeance: "D+3"
+    statut: "✅ Appliqué (15/05/2026)"
+  - code: "R5.3"
+    action: "Rotation mot de passe soc.admin (32 chars)"
+    priorite: 1
+    effort_jh: 0.5
+    echeance: "D+3"
+    statut: "✅ Appliqué (15/05/2026)"
+  - code: "R5.4"
+    action: "Restauration RequirePreAuth sur p.bernard"
+    priorite: 1
+    effort_jh: 0.2
+    echeance: "D+3"
+    statut: "✅ Appliqué (15/05/2026)"
+  - code: "R5.5"
+    action: "Politique de verrouillage AD (5 essais / 15 min)"
+    priorite: 2
+    effort_jh: 0.5
+    echeance: "D+7"
+    statut: "✅ Appliqué (15/05/2026)"
+  - code: "R6"
+    action: "Activation Azure DDoS Protection Standard"
+    priorite: 3
+    effort_jh: 1
+    echeance: "D+14"
+    statut: "Planifié"
+  - code: "R7"
+    action: "Procédure formelle d'off-boarding"
+    priorite: 2
+    effort_jh: 2
+    echeance: "D+21"
+    statut: "Planifié"
+  - code: "R8"
+    action: "MFA TOTP obligatoire pour comptes administrateurs et personnel"
+    priorite: 2
+    effort_jh: 3
+    echeance: "D+30"
+    statut: "Planifié"
+  - code: "R9"
+    action: "Sauvegardes journalières des bases"
+    priorite: 3
+    effort_jh: 1
+    echeance: "D+14"
+    statut: "Planifié"
+  - code: "R10"
+    action: "Pipeline d'homologation continue (HOMO-CI)"
+    priorite: 4
+    effort_jh: 4
+    echeance: "D+45"
+    statut: "✅ Opérationnel (v0.1, mai 2026)"
+
+# ════════════════════════════════════════════════════════════════
+# Référentiels appliqués (conformité)
+# ════════════════════════════════════════════════════════════════
+referentiels:
+  - nom: "RGPD"
+    reference: "UE 2016/679"
+    statut: "Applicable"
+    couverture: "Partielle — registre des traitements à formaliser, AIPD à conduire"
+  - nom: "RGS v2.0"
+    reference: "Décret 2010-112"
+    statut: "Applicable (téléservices)"
+    couverture: "Bonne — TLS, audit, segmentation conformes"
+  - nom: "NIS 2"
+    reference: "UE 2022/2555"
+    statut: "À évaluer (université > seuils ?)"
+    couverture: "Partielle — reporting incidents non automatisé"
+  - nom: "ANSSI — Guide AD"
+    reference: "DAT-NT-17"
+    statut: "Bonne pratique"
+    couverture: "Bonne — durcissement appliqué"
+  - nom: "ANSSI — Guide Pare-feu"
+    reference: "DAT-NT-006"
+    statut: "Bonne pratique"
+    couverture: "Bonne — NSG en liste blanche"
+  - nom: "OWASP ASVS v4.0.3"
+    reference: "Niveau L2"
+    statut: "Bonne pratique"
+    couverture: "Élevée — 35/37 contrôles vérifiés (~94 %)"
+  - nom: "CIS Docker Benchmark v1.6"
+    reference: "—"
+    statut: "Bonne pratique"
+    couverture: "Conforme depuis 15/05/2026 (§5.31 corrigé par R2)"

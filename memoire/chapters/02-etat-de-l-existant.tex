@@ -1,0 +1,110 @@
+\chapter{Ce qui existe déjà}
+\label{ch:etat-existant}
+
+Ce chapitre fait le tour des outils et méthodes qui traitent
+aujourd'hui la conformité d'un SI. L'objectif n'est pas d'être
+exhaustif --- les références bibliographiques le sont --- mais de
+situer où se place HOMO-CI par rapport à ce qui existe.
+
+\section{Le cadre ANSSI : un dossier daté}
+
+L'ANSSI publie un \emph{Guide d'homologation en neuf étapes
+simples}~\cite{anssi-homologation-2014}. Les neuf étapes vont du
+cadrage (étape~1) à la décision d'homologation (étape~8), avec
+une étape~9 souvent oubliée~: \emph{maintenir l'homologation dans
+le temps}.
+
+La méthode pour analyser le risque, c'est \textbf{EBIOS Risk
+Manager}~\cite{anssi-ebios-rm-2018}. Cinq ateliers~: cadrage,
+sources de risque, scénarios stratégiques, scénarios
+opérationnels, traitement du risque. EBIOS RM fournit la matière
+de plusieurs sections du dossier (analyse de risque, mesures de
+sécurité).
+
+Le point commun de ces deux outils, c'est qu'ils produisent un
+livrable \emph{ponctuel}. Un dossier daté, une analyse de risque
+datée. Rien dans le cadre actuel ne dit comment ces livrables
+sont mis à jour quand le SI évolue, à part une re-conduction
+complète tous les 3~ans.
+
+\section{L'audit annuel : ce qui se pratique}
+
+Dans la plupart des organisations publiques, le suivi de
+l'homologation se résume à~:
+
+\begin{itemize}
+  \item un audit \textbf{annuel} ou tri-annuel, externe ou
+    interne, qui regarde un échantillon de règles et de
+    configurations~;
+  \item une re-conduction de l'homologation tous les 3~ans, qui
+    mobilise typiquement entre 40 et 120 jours-homme selon la
+    complexité du SI.
+\end{itemize}
+
+Le coût est élevé, et entre deux audits, on est aveugle. Si une
+règle NSG est désactivée par erreur en juin, on s'en rendra
+compte (peut-être) à l'audit de l'année suivante.
+
+\section{Le DevSecOps et la \emph{continuous compliance}}
+
+Côté privé et cloud, depuis 2017--2018, des outils proposent une
+collecte continue de preuves~: \textbf{Drata}, \textbf{Vanta},
+\textbf{Tugboat Logic} pour les certifications SOC 2 / ISO 27001
+américaines. Le principe est le même que ce qu'on fait ici~:
+brancher des collecteurs sur les API du SI, regarder en
+permanence si les contrôles sont respectés.
+
+Deux limites pour notre cas~:
+
+\begin{enumerate}
+  \item Ces outils ciblent SOC 2 et ISO 27001, pas le cadre ANSSI.
+    Le mapping vers l'homologation ANSSI doit être fait à la main.
+  \item Ce sont des produits commerciaux fermés. On ne peut ni
+    auditer leur code, ni l'adapter aux spécificités françaises
+    (EBIOS RM, AQSSI, dossier au format ANSSI).
+\end{enumerate}
+
+\section{Les outils d'inventaire et de posture}
+
+Côté cloud, des outils comme \textbf{Azure Policy},
+\textbf{AWS Config}, \textbf{Prowler}, \textbf{ScoutSuite}
+collectent l'état des ressources et le comparent à des
+référentiels. Ils sont utiles, mais s'arrêtent à l'inventaire~:
+ils ne produisent pas le dossier d'homologation, ni l'analyse de
+risque associée. Ils sont une brique~; HOMO-CI les utilise (le
+watcher NSG s'appuie sur l'API Azure Resource Manager), mais va
+plus loin en produisant un livrable réglementaire.
+
+\section{Où se place HOMO-CI}
+
+\begin{table}[h]
+\centering
+\caption{Positionnement de HOMO-CI par rapport à l'existant.}
+\label{tab:positionnement}
+\small
+\begin{tabularx}{\textwidth}{lXcccc}
+\toprule
+\textbf{Outil} & \textbf{Cible} & \textbf{Continu} & \textbf{ANSSI} & \textbf{Open source} & \textbf{Dossier complet} \\
+\midrule
+Audit annuel manuel & ANSSI / ISO & \xmark & \cmark & --- & \cmark \\
+Drata, Vanta & SOC 2 / ISO 27001 & \cmark & \xmark & \xmark & partiel \\
+Prowler, ScoutSuite & Posture cloud & \cmark & \xmark & \cmark & \xmark \\
+Azure Policy & Conformité Azure & \cmark & \xmark & \xmark & \xmark \\
+\textbf{HOMO-CI} & \textbf{ANSSI} & \cmark & \cmark & \cmark & \cmark \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+L'apport ne tient pas dans une innovation algorithmique~: les
+briques (Wazuh, API Azure, Trivy, Jinja2) existent et sont
+matures. L'apport tient dans \textbf{l'intégration} de ces
+briques pour produire un livrable conforme au cadre ANSSI, et
+dans \textbf{la démonstration} que ça tient debout sur un SI de
+type ENT universitaire.
+
+\begin{takeaway}
+Le marché propose soit des outils ponctuels et chers (audit
+manuel ANSSI), soit des outils continus mais sur d'autres
+référentiels (SOC 2, ISO~27001). Personne ne fait du continu
+sur ANSSI en open source. C'est le créneau de HOMO-CI.
+\end{takeaway}

@@ -1,0 +1,113 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+\section{Le problème de départ}
+
+Quand une administration française met en production une
+application qui traite des données sensibles, elle doit la faire
+\emph{homologuer}. Concrètement, une autorité dans l'organisation
+signe un document qui dit~: \emph{«~j'ai compris les risques, voici
+les mesures que j'ai mises en place, et j'accepte ce qu'il reste~».}
+Ce document s'appelle le \textbf{dossier d'homologation}. Le cadre
+est posé par le RGS, et l'ANSSI publie un guide en neuf étapes pour
+le construire.
+
+Le souci, c'est qu'une fois le dossier signé, il est figé. Pendant
+ce temps, le SI continue à vivre~:
+
+\begin{itemize}
+  \item de nouvelles CVE sortent chaque semaine sur les composants
+        utilisés~;
+  \item les règles réseau (firewalls, NSG Azure) sont modifiées
+        pour les besoins du quotidien~;
+  \item l'Active Directory bouge en permanence (arrivées,
+        départs, changements de groupe)~;
+  \item les règles de détection du SIEM sont ajustées, désactivées,
+        oubliées.
+\end{itemize}
+
+Au bout de quelques mois, l'écart entre ce que dit le dossier et
+ce que fait vraiment le SI devient gênant. À un an, on a vu des
+audits où plus de 50\,\% des règles de filtrage ne correspondaient
+plus à ce qui était documenté. C'est ce qu'on appelle dans la
+suite l'\textbf{audit drift}.
+
+\section{Ce qu'on fait dans ce mémoire}
+
+L'idée du PFE est simple~: si la majorité de l'information qui
+peuple un dossier d'homologation peut être collectée par script
+(état des règles NSG, liste des CVE des images Docker, comptes AD,
+règles Wazuh actives), alors on peut maintenir une version
+\emph{tenue à jour} du dossier en automatisant cette collecte.
+
+Pour le démontrer, le projet comporte deux livrables~:
+
+\begin{description}
+  \item[Un lab d'expérimentation, UrbanUpC.] Un SOC complet déployé
+    sur Azure, avec un Active Directory, des applications web
+    vulnérables, et un SIEM Wazuh qui détecte les attaques. Le
+    lab sert à la fois de cible d'étude (\emph{«~de quoi parle
+    un dossier d'homologation, concrètement~?~»}) et de banc de
+    test pour l'outil.
+  \item[Un outil d'automatisation, HOMO-CI.] Un pipeline Python
+    qui interroge les API Azure, Wazuh et l'AD, normalise les
+    réponses, détecte les changements, et régénère le dossier
+    d'homologation au format ANSSI. À chaque exécution, on a un
+    nouveau dossier daté, signé, traçable.
+\end{description}
+
+\section{Ce qu'on cherche à vérifier}
+
+Trois objectifs concrets pour l'outil~:
+
+\begin{enumerate}
+  \item \textbf{Couverture}~: quelle proportion des preuves
+    techniques attendues dans un dossier d'homologation ANSSI
+    l'outil arrive-t-il à collecter tout seul~?
+  \item \textbf{Fraîcheur}~: combien de temps s'écoule entre un
+    changement réel (par exemple, une règle NSG modifiée) et la
+    mise à jour du dossier~?
+  \item \textbf{Précision}~: ce que l'outil écrit dans le
+    dossier correspond-il vraiment à ce qui tourne dans le lab~?
+\end{enumerate}
+
+Ce ne sont pas des hypothèses scientifiques au sens strict, ce sont
+des objectifs d'ingénieur. On les mesure dans la partie~IV.
+
+\section{Ce que ce mémoire n'est pas}
+
+Pour cadrer dès le départ~:
+
+\begin{itemize}
+  \item \textbf{Ce n'est pas une refonte de la méthode ANSSI.}
+    Le guide en neuf étapes reste la référence. L'outil produit
+    un dossier qui suit cette structure, pas un format inventé.
+  \item \textbf{Ce n'est pas un produit commercial.} C'est un PoC
+    fonctionnel, codé proprement, mais sans support, sans
+    interface graphique, sans intégration au-delà du lab.
+  \item \textbf{Ce n'est pas une couverture exhaustive.} Tout ce
+    qui est organisationnel (formation des équipes, procédures,
+    revues humaines) reste manuel. L'outil n'attaque que la
+    couche technique.
+\end{itemize}
+
+\section{Plan du mémoire}
+
+Le mémoire suit cinq parties~:
+
+\begin{description}
+  \item[Partie~I --- Contexte.] Le problème métier, et un tour de
+    l'existant côté audit et conformité continue
+    (\cref{ch:etat-existant}).
+  \item[Partie~II --- Le lab.] Comment UrbanUpC est monté~:
+    architecture Azure (\cref{ch:lab-archi}), applications et AD
+    (\cref{ch:apps-ad}), SOC Wazuh (\cref{ch:soc-wazuh}).
+  \item[Partie~III --- L'outil.] Ce que HOMO-CI doit faire
+    (\cref{ch:conception}) et comment il est codé
+    (\cref{ch:implementation}).
+  \item[Partie~IV --- Ce qu'on a mesuré.] Les tests sur le lab et
+    les chiffres réels (\cref{ch:resultats}).
+  \item[Partie~V --- Discussion et suite.] Les limites honnêtes,
+    ce qui marcherait au-delà du lab, et la conclusion
+    (\cref{ch:limites}).
+\end{description}

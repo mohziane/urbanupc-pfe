@@ -1,0 +1,246 @@
+name: internal-apps
+
+# Each app sits in its own proxy network. nginx joins both, the two apps never share a Docker bridge.
+networks:
+  maformation_proxy_net:
+    driver: bridge
+  macandidature_proxy_net:
+    driver: bridge
+  maformation_db_net:
+    driver: bridge
+    internal: true
+  macandidature_db_net:
+    driver: bridge
+    internal: true
+
+volumes:
+  maformation_db_data:
+  macandidature_db_data:
+  maformation_uploads:
+  macandidature_uploads:
+
+secrets:
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  session_secret:
+    file: ./secrets/session_secret.txt
+  ldap_bind_pw:
+    file: ./secrets/ldap_bind_pw.txt
+  maformation_db_pw:
+    file: ./secrets/maformation_db_pw.txt
+  macandidature_db_pw:
+    file: ./secrets/macandidature_db_pw.txt
+
+services:
+  # ──────────────── shared reverse proxy ────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: internal_nginx
+    restart: unless-stopped
+    # Bind to loopback only: not reachable from Internet, only from the host
+    # (CorpNet backend on the same host calls https://127.0.0.1:8443 / :8444).
+    ports:
+      - "127.0.0.1:8443:8443"
+      - "127.0.0.1:8444:8444"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/proxy-common.conf:/etc/nginx/conf.d/proxy-common.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - /var/log/corpnet/internal/nginx:/var/log/nginx
+    networks:
+      - maformation_proxy_net
+      - macandidature_proxy_net
+    depends_on:
+      - maformation
+      - macandidature
+    user: "101:101"
+    read_only: true
+    # tmpfs owned by nginx user (101) so client_temp/proxy_temp etc. can be written.
+    tmpfs:
+      - /var/cache/nginx:uid=101,gid=101,mode=750
+      - /var/run:uid=101,gid=101,mode=750
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+
+  # ──────────────── MaFormation (secure by design) ────────────────
+  maformation_db:
+    image: postgres:16-alpine
+    container_name: maformation_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: maformation
+      POSTGRES_USER: maformation
+      POSTGRES_PASSWORD_FILE: /run/secrets/maformation_db_pw
+    volumes:
+      - maformation_db_data:/var/lib/postgresql/data
+    networks:
+      - maformation_db_net
+    secrets:
+      - maformation_db_pw
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+
+  maformation:
+    build: ./maformation
+    image: internal-apps/maformation:latest
+    container_name: maformation_app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://maformation:__PW__@maformation_db:5432/maformation?schema=public"
+      MAFORMATION_DB_PW_FILE: /run/secrets/maformation_db_pw
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      SESSION_SECRET_FILE: /run/secrets/session_secret
+      LDAP_URL: ldap://10.0.2.10:389
+      LDAP_BIND_DN: "CN=Service LDAP Bind,CN=Users,DC=corpnet,DC=local"
+      LDAP_BIND_PW_FILE: /run/secrets/ldap_bind_pw
+      LDAP_SEARCH_BASE: "DC=corpnet,DC=local"
+      LOG_LEVEL: info
+      APP_NAME: maformation
+    volumes:
+      - maformation_uploads:/app/uploads
+      - /var/log/corpnet/internal/maformation:/app/logs
+    networks:
+      - maformation_proxy_net
+      - maformation_db_net
+    depends_on:
+      - maformation_db
+    user: "1001:1001"
+    # PACS R3 appliqué (15/05/2026) : read-only filesystem rétabli.
+    # Les migrations Prisma sont désormais effectuées par le service
+    # `maformation_migrator` (profile=migration), qui dispose d'un FS
+    # accessible en écriture mais ne tourne que ponctuellement.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    secrets:
+      - jwt_secret
+      - session_secret
+      - ldap_bind_pw
+      - maformation_db_pw
+
+  # PACS R3 — Service migrator dédié (s'exécute à la demande)
+  #   Usage : docker compose --profile migration run --rm maformation_migrator
+  maformation_migrator:
+    build: ./maformation
+    image: internal-apps/maformation:latest
+    profiles: ["migration"]
+    environment:
+      DATABASE_URL: "postgresql://maformation:__PW__@maformation_db:5432/maformation?schema=public"
+      MAFORMATION_DB_PW_FILE: /run/secrets/maformation_db_pw
+      # Prisma CLI vérifie les checksums des engines en ligne au démarrage
+      # → migrator a besoin d'Internet (proxy_net = bridge non-internal)
+    networks:
+      - maformation_proxy_net
+      - maformation_db_net
+    depends_on:
+      - maformation_db
+    secrets:
+      - maformation_db_pw
+    entrypoint: ["sh", "-c"]
+    command: ["PW=$$(cat /run/secrets/maformation_db_pw); export DATABASE_URL=\"postgresql://maformation:$${PW}@maformation_db:5432/maformation?schema=public\"; npx prisma db push --skip-generate --accept-data-loss && node prisma/seed.js"]
+
+  # ──────────────── MaCandidature (INTENTIONAL VULN: docker.sock mount) ────────────────
+  macandidature_db:
+    image: postgres:16-alpine
+    container_name: macandidature_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: macandidature
+      POSTGRES_USER: macandidature
+      POSTGRES_PASSWORD_FILE: /run/secrets/macandidature_db_pw
+    volumes:
+      - macandidature_db_data:/var/lib/postgresql/data
+    networks:
+      - macandidature_db_net
+    secrets:
+      - macandidature_db_pw
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+
+  macandidature:
+    build: ./macandidature
+    image: internal-apps/macandidature:latest
+    container_name: macandidature_app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://macandidature:__PW__@macandidature_db:5432/macandidature?schema=public"
+      MACANDIDATURE_DB_PW_FILE: /run/secrets/macandidature_db_pw
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      SESSION_SECRET_FILE: /run/secrets/session_secret
+      LOG_LEVEL: info
+      APP_NAME: macandidature
+    volumes:
+      - macandidature_uploads:/app/uploads
+      - /var/log/corpnet/internal/macandidature:/app/logs
+      # ────────────────────────────────────────────────────────────
+      # PACS R2 appliqué (15/05/2026) :
+      #   • Mount /var/run/docker.sock RETIRÉ — CIS Docker §5.31 OK
+      #   • User non-root (UID 1001) — voir bloc `user:` ci-dessous
+      #   • docker-cli retiré de l'image — Dockerfile v2.0
+      #   • read_only + cap_drop ALL + no-new-privileges
+      #   • MITRE ATT&CK T1611 (Escape to Host) neutralisé
+      # ────────────────────────────────────────────────────────────
+    networks:
+      - macandidature_proxy_net
+      - macandidature_db_net
+    depends_on:
+      - macandidature_db
+    user: "1001:1001"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    secrets:
+      - jwt_secret
+      - session_secret
+      - macandidature_db_pw
+
+  # PACS R3 — Service migrator dédié pour MaCandidature
+  macandidature_migrator:
+    build: ./macandidature
+    image: internal-apps/macandidature:latest
+    profiles: ["migration"]
+    environment:
+      DATABASE_URL: "postgresql://macandidature:__PW__@macandidature_db:5432/macandidature?schema=public"
+      MACANDIDATURE_DB_PW_FILE: /run/secrets/macandidature_db_pw
+    networks:
+      - macandidature_proxy_net
+      - macandidature_db_net
+    depends_on:
+      - macandidature_db
+    secrets:
+      - macandidature_db_pw
+    entrypoint: ["sh", "-c"]
+    command: ["PW=$$(cat /run/secrets/macandidature_db_pw); export DATABASE_URL=\"postgresql://macandidature:$${PW}@macandidature_db:5432/macandidature?schema=public\"; npx prisma db push --skip-generate --accept-data-loss"]

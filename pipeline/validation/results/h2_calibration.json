@@ -1,0 +1,39 @@
+{
+  "config": {
+    "RG": "RG-PFE-SOC",
+    "NSG": "nsg-dmz",
+    "test_rule": "H2-CAL-TEST-RULE"
+  },
+  "measurements": [
+    {
+      "injection": "I1",
+      "action": "create NSG rule",
+      "t_source": "2026-05-15T14:20:43.043587+00:00",
+      "t_azure": "2026-05-15T14:20:44.785491+00:00",
+      "t_detect": "2026-05-15T14:20:46.031737+00:00",
+      "t_dossier": "2026-05-15T14:20:48.036606+00:00",
+      "delta_azure_s": 1.741904,
+      "delta_detect_s": 2.98815,
+      "delta_dossier_s": 4.993019
+    },
+    {
+      "injection": "I2",
+      "action": "delete NSG rule",
+      "t_source": "2026-05-15T14:20:53.037534+00:00",
+      "t_azure": "2026-05-15T14:20:56.765484+00:00",
+      "t_detect": "2026-05-15T14:20:58.082306+00:00",
+      "t_dossier": "2026-05-15T14:21:00.087401+00:00",
+      "delta_azure_s": 3.72795,
+      "delta_detect_s": 5.044772,
+      "delta_dossier_s": 7.049867
+    }
+  ],
+  "summary": {
+    "avg_delta_azure_s": 2.734927,
+    "avg_delta_detect_s": 4.016461,
+    "avg_delta_dossier_s": 6.021443,
+    "model_predicted_detect_s": 60,
+    "residual_s": -55.983539,
+    "model_validated": true
+  }
+}

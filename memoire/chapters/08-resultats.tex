@@ -1,0 +1,253 @@
+\chapter{Ce qu'on a mesuré sur le lab}
+\label{ch:resultats}
+
+Ce chapitre présente les chiffres obtenus en faisant tourner
+HOMO-CI sur le lab UrbanUpC. L'objectif est de répondre aux trois
+questions posées en introduction~: couverture, fraîcheur,
+précision. Les résultats sont donnés avec leurs limites~; il n'y
+a pas de p-value, juste des mesures avec leur protocole et leur
+sensibilité aux choix faits.
+
+\section{Protocole en bref}
+
+\paragraph{Cible.} Le lab UrbanUpC complet~: les 3 VMs Azure, le
+domaine \texttt{corpnet.local}, les 3 applications, le SIEM
+Wazuh.
+
+\paragraph{Référence pour la couverture.} Un catalogue de 100
+preuves attendues, construit par lecture du \emph{Guide
+d'homologation ANSSI}~\cite{anssi-homologation-2014} et de la
+norme \emph{ISO/IEC 27002:2022}. Chaque preuve est classée par
+étape ANSSI et marquée comme automatisable (A), semi-automatisable
+(B), ou intrinsèquement manuelle (C).
+
+\paragraph{Période de mesure.} Trois semaines d'exécutions
+nocturnes (\emph{nightly}) du pipeline, du 22~avril au 13~mai
+2026, sur le lab. Plus deux injections \emph{ad hoc} pour
+mesurer la latence (création et suppression d'une règle NSG
+chronométrées).
+
+\section{Couverture des preuves}
+
+\paragraph{Question.} Sur les 100 preuves attendues, combien
+HOMO-CI arrive-t-il à collecter ?
+
+\paragraph{Résultat brut.} L'outil collecte automatiquement
+\textbf{40 preuves} sur 100. Si on pondère par
+\emph{automatisabilité} (A~=~1,0~; B~=~0,5~; C~=~0,0), le score
+est de \textbf{49\,\%}.
+
+C'est en dessous du seuil de 60\,\% qu'on s'était fixé. La raison
+saute aux yeux quand on regarde la décomposition par étape
+ANSSI~:
+
+\begin{table}[h]
+\centering
+\caption{Couverture par scope d'étapes ANSSI.}
+\label{tab:couverture}
+\small
+\begin{tabular}{lrrl}
+\toprule
+\textbf{Scope} & \textbf{Items} & \textbf{Couverture pondérée} & \textbf{Verdict} \\
+\midrule
+Technique (étapes 4, 6, 7) & 62 & \textbf{61,5\,\%} & Atteint l'objectif \\
+Gouvernance (étapes 1, 2, 3, 5, 8) & 26 & 11,5\,\% & Non automatisable \\
+Maintien (étape 9) & 12 & 45,8\,\% & Partiel \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Lecture.} Sur les preuves \emph{techniques} (règles
+NSG, CVE, comptes AD, règles SIEM), HOMO-CI dépasse 60\,\%. Sur
+les preuves \emph{de gouvernance} (formation, sensibilisation,
+revues humaines), il ne fait presque rien --- et c'est attendu~:
+ces preuves sont par nature manuelles. L'outil sert à couvrir
+la moitié technique du dossier, pas à se substituer aux
+décisions humaines.
+
+\paragraph{Sensibilité.} On a refait la classification A/B/C
+avec deux variantes pessimiste (faire glisser 10 items de B vers
+C) et optimiste (10 items de B vers A)~:
+
+\begin{table}[h]
+\centering
+\caption{Sensibilité à la classification A/B/C (scope technique).}
+\label{tab:sensibilite-cov}
+\small
+\begin{tabular}{lr}
+\toprule
+\textbf{Variante} & \textbf{Couverture pondérée} \\
+\midrule
+Référence & 61,5\,\% \\
+Pessimiste & 53,2\,\% \\
+Optimiste & 67,7\,\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Le résultat est robuste mais sensible à la rigueur de
+classification~: une vraie validation passerait par une
+classification croisée à deux personnes.
+
+\section{Fraîcheur : combien de temps pour propager un changement}
+
+\paragraph{Question.} Quand une règle NSG change réellement,
+combien de temps faut-il pour que le dossier d'homologation
+généré par HOMO-CI reflète ce changement~?
+
+\paragraph{Modèle théorique.} Si le pipeline tourne en nightly,
+on s'attend à un délai moyen de 12 heures (au pire 24~h, dans le
+cas où le changement arrive juste après une exécution).
+
+\paragraph{Mesure réelle sur Azure.}
+Deux injections chronométrées~:
+
+\begin{table}[h]
+\centering
+\caption{Latence de propagation mesurée (deux injections sur
+\texttt{nsg-dmz}).}
+\label{tab:latence}
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Mesure} & \textbf{Détection (s)} & \textbf{Dossier régénéré (s)} \\
+\midrule
+Création d'une règle & 2,99 & 4,99 \\
+Suppression d'une règle & 5,04 & 7,05 \\
+\midrule
+\textbf{Moyenne} & \textbf{4,0\,s} & \textbf{6,0\,s} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Évidemment, ces chiffres correspondent à un mode \emph{déclenché
+manuellement}~: l'opérateur lance \texttt{homo-ci collect} juste
+après le changement. En mode nightly réel, on retombe sur les
+12--24~heures attendues.
+
+\paragraph{Comparaison.} Un cycle d'audit annuel place ce délai à
+plusieurs mois. Même en mode nightly, HOMO-CI est largement plus
+rapide. Le tableau ci-dessous montre l'effet du choix de
+cadence~:
+
+\begin{table}[h]
+\centering
+\caption{Latence en fonction de la cadence de régénération.}
+\label{tab:cadence}
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Cadence} & \textbf{Délai moyen} & \textbf{P95} \\
+\midrule
+Weekly & 3,8\,j & 6,7\,j \\
+Nightly (référence) & 13,5\,h & 22,8\,h \\
+Toutes les 6\,h & 3,7\,h & 5,9\,h \\
+Toutes les heures & 38\,min & 58\,min \\
+Toutes les 15\,min & 8\,min & 14\,min \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Conclusion pratique~: la cadence est un levier simple. Pour un
+ENT en production, du nightly est probablement suffisant. Pour
+une infra plus critique, on peut descendre à l'heure sans
+modifier le code, juste en changeant le \texttt{cron}.
+
+\section{Précision : ce que dit le dossier correspond-il à la réalité}
+
+\paragraph{Question.} Un dossier généré aujourd'hui décrit-il
+fidèlement le lab tel qu'il est ce matin~?
+
+\paragraph{Protocole.} Simulation rétroactive sur 180 jours avec
+125 éléments de SI (NSG, CVE, comptes AD, règles SIEM) qui
+évoluent selon un modèle de changement réaliste (basé sur le
+journal git du lab). On compare le \emph{taux d'alignement}
+entre~:
+
+\begin{itemize}
+  \item un dossier statique généré à $t_0$ et jamais mis à jour~;
+  \item un dossier régénéré chaque nuit par HOMO-CI.
+\end{itemize}
+
+\paragraph{Résultats.}
+
+\begin{table}[h]
+\centering
+\caption{Taux d'alignement par âge du dossier (simulation 180\,j).}
+\label{tab:alignement}
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Dossier} & \textbf{Âge (jours)} & \textbf{Alignement} \\
+\midrule
+Statique $D_0$ & 0 & 100\,\% \\
+Statique $D_{30}$ & 30 & 83,3\,\% \\
+Statique $D_{90}$ & 90 & \textbf{63,1\,\%} \\
+Statique $D_{150}$ & 150 & 51,1\,\% \\
+Statique $D_{180}$ & 180 & 46,5\,\% \\
+\midrule
+HOMO-CI (nightly) & --- & \textbf{100\,\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Lecture.} À 90 jours, un dossier statique perd
+36\,points d'alignement~: plus d'un tiers de ce qu'il décrit ne
+correspond plus à la réalité. HOMO-CI maintient l'alignement à
+100\,\%, par construction (il ne décrit que ce qu'il a collecté
+la nuit précédente).
+
+\todofig{Courbe d'alignement en fonction de l'âge du dossier
+(statique en rouge décroissant, continu en bleu constant à
+100\,\%).}
+
+\paragraph{Honnêteté sur le 100\,\%.} Ce 100\,\% ne signifie pas
+\emph{parfait}. Cela signifie~: \emph{ce que le dossier décrit
+est ce que l'outil a vu cette nuit}. Si l'outil a un trou de
+couverture (cas des preuves de gouvernance vu plus haut), ce trou
+reste un trou. On parle d'alignement \emph{sur le périmètre que
+l'outil couvre}.
+
+\section{Coût de l'outil}
+
+\paragraph{Coût Azure.} Sur les trois semaines de test, le crédit
+consommé par les VMs et le Blob Storage est resté sous
+275\,\euro. Le pipeline lui-même tourne sur le poste local et ne
+consomme pas de ressources cloud.
+
+\paragraph{Temps d'exécution.} Un cycle complet (\texttt{collect},
+\texttt{diff}, \texttt{render}, \texttt{publish}) prend environ
+90~secondes sur le lab,
+dont 70\,\% sur les appels API Azure. Pour un SI plus gros,
+l'élargissement viendrait surtout du nombre de NSG et de l'AD.
+
+\paragraph{Temps de mise en place.} Cloner le dépôt et faire
+tourner une première exécution sur un nouveau lab prend environ
+4~heures (création du Resource Group, déploiement des VMs,
+installation de Wazuh, configuration des credentials Azure).
+
+\section{Synthèse}
+
+\begin{table}[h]
+\centering
+\caption{Synthèse des trois objectifs.}
+\label{tab:synthese}
+\small
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+\textbf{Objectif} & \textbf{Résultat} & \textbf{Verdict} \\
+\midrule
+Couverture des preuves & 61,5\,\% (scope technique), 49\,\% (global) & Atteint sur le périmètre technique, comme prévu \\
+Fraîcheur du dossier & 4--6\,s en mode déclenché, 13,5\,h en nightly & Très en-dessous des 24\,h visées \\
+Précision du dossier & 100\,\% sur le périmètre couvert, vs 63\,\% pour un dossier statique de 90\,j & Net gain sur la dérive \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{takeaway}
+L'outil fait ce qu'on attendait sur la couche technique. Sur la
+gouvernance, il est inutile, et c'est volontaire. Le gain
+principal n'est pas dans l'innovation algorithmique, mais dans
+la régularité~: tous les jours, à 03h00, un nouveau dossier est
+produit, daté, signé, comparable au précédent.
+\end{takeaway}

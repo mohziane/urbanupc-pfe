@@ -1,0 +1,83 @@
+# ════════════════════════════════════════════════════════════════════
+# Protocole d'injection H2 — Mesure de la fraîcheur de propagation
+#
+# Conformément à T-1.2-FINAL §1.3 et §2 :
+#   - 8 catégories de changement (C1 à C8)
+#   - 3 injections par catégorie → 24 événements
+#   - Calendrier randomisé sur 14 jours, seed=42 (reproductibilité)
+#   - Pour chaque événement : t_source horodaté précisément
+#
+# Catégories selon Table 4.1 de T-1.2-FINAL :
+#   C1 CVE publiée                 - watcher wc_cve (Trivy nightly)
+#   C2 Modification NSG            - watcher wc_nsg (Azure Activity Log)
+#   C3 Compte AD créé              - watcher wc_ad (Wazuh agent DC01)
+#   C4 Ajout Domain Admins         - watcher wc_ad (Wazuh agent DC01)
+#   C5 Désactivation règle SIEM    - watcher wc_siem (Wazuh API)
+#   C6 Service Docker démarré      - watcher wc_docker (events watcher)
+#   C7 Vuln applicative SAST       - watcher wc_sast (Semgrep CI)
+#   C8 Dépendance npm vulnérable   - watcher wc_deps (npm audit CI)
+# ════════════════════════════════════════════════════════════════════
+
+meta:
+  protocol_version: "1.0"
+  date_published: "2026-05-15"
+  reference: "T-1.2-FINAL §2"
+  seed: 42
+  n_events: 24
+  n_categories: 8
+  events_per_category: 3
+  window_days: 14
+  baseline_manual_days: [90, 180]  # 3 à 6 mois
+
+# ════════════════════════════════════════════════════════════════════
+# Modèle de cadences du pipeline (déterministe)
+# ════════════════════════════════════════════════════════════════════
+pipeline_model:
+  dossier_regen:
+    type: "nightly"
+    hour_utc: 22
+    pipeline_runtime_min: 20    # durée totale d'un cycle pipeline
+
+  watchers:
+    C1_CVE:
+      type: "scheduled"
+      hour_utc: 21              # Trivy nightly avant la régénération
+      latency_min: 5            # temps de scan + traitement
+      description: "Trivy nightly + npm audit sur images Docker"
+    C2_NSG:
+      type: "polling"
+      interval_min: 5
+      latency_min: 1
+      description: "Azure Activity Log polling toutes les 5 minutes"
+    C3_AD_user:
+      type: "continuous"
+      latency_min: 0.5
+      description: "Wazuh agent DC01 stream Security Event 4720"
+    C4_DA_add:
+      type: "continuous"
+      latency_min: 0.5
+      description: "Wazuh agent DC01 stream Security Event 4732"
+    C5_SIEM_rule:
+      type: "polling"
+      interval_min: 60
+      latency_min: 2
+      description: "Wazuh manager API horaire"
+    C6_Docker:
+      type: "continuous"
+      latency_min: 0.1
+      description: "Docker events watcher en streaming sur web01"
+    C7_SAST:
+      type: "on_push"
+      latency_min: 3
+      description: "Semgrep CI déclenché par git push (~3 min)"
+    C8_npm_audit:
+      type: "on_push"
+      latency_min: 3
+      description: "npm audit CI déclenché par git push"
+
+# ════════════════════════════════════════════════════════════════════
+# Calendrier des injections (sera généré par measure_h2.py avec seed=42)
+# Cette section reste vide ; elle est générée *a posteriori* pour
+# documentation, à partir du seed pour garantir la reproductibilité.
+# ════════════════════════════════════════════════════════════════════
+events: []

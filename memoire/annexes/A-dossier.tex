@@ -1,0 +1,76 @@
+\chapter{Extrait du dossier d'homologation généré}
+\label{annexe:dossier}
+
+Cette annexe reproduit la structure d'un dossier d'homologation
+généré par HOMO-CI sur le lab UrbanUpC, et un extrait du contenu
+réel produit. Le PDF complet est dans \texttt{pipeline/build/}.
+
+\section{Structure du dossier}
+
+Le dossier suit les sections du \emph{Guide d'homologation ANSSI
+en neuf étapes simples}. HOMO-CI alimente automatiquement les
+étapes techniques (4, 6, 7, 9)~; les autres restent à compléter
+à la main.
+
+\begin{enumerate}
+  \item \textbf{Cadrage et finalité} (manuel).
+  \item \textbf{Périmètre fonctionnel} (manuel).
+  \item \textbf{Acteurs et rôles} (manuel).
+  \item \textbf{Cartographie du SI} (auto)~: NSG, applications,
+    AD, services exposés.
+  \item \textbf{Analyse de risque EBIOS RM} (manuel pour les
+    ateliers, auto pour l'inventaire des biens supports).
+  \item \textbf{Mesures de sécurité} (auto)~: règles NSG, CVE,
+    règles Wazuh, configuration AD.
+  \item \textbf{Audits et tests} (auto)~: scans Trivy, alertes
+    Wazuh, états des agents.
+  \item \textbf{Décision d'homologation} (manuel, signé AQSSI).
+  \item \textbf{Maintien dans le temps} (auto)~: hash chain des
+    dossiers précédents, dérives détectées depuis le dernier
+    cycle.
+\end{enumerate}
+
+\section{Exemple : extrait de l'étape 6 (mesures de sécurité)}
+
+\begin{lstlisting}[language={[LaTeX]TeX},caption={Extrait du
+Markdown généré par le template \texttt{dossier.md.j2}.}]
+## Étape 6 — Mesures de sécurité
+
+### Règles réseau (Network Security Groups)
+
+Au 13/05/2026 03:00 UTC, le Resource Group RG-PFE-SOC contient
+3 NSG appliqués aux 3 subnets :
+
+| NSG       | Règle              | Pri | Sens | Action |
+|-----------|--------------------|-----|------|--------|
+| nsg-dmz   | Allow-HTTP         | 100 | In   | Allow  |
+| nsg-dmz   | Deny-DMZ-to-LAN    | 200 | Out  | Deny   |
+| nsg-lan   | Allow-RDP-Admin    | 100 | In   | Allow  |
+| nsg-lan   | Deny-LAN-to-Internet | 200 | Out  | Deny |
+| nsg-mgmt  | Allow-Wazuh-Agents | 110 | In   | Allow  |
+
+### Vulnérabilités identifiées (CVE)
+
+Scan Trivy du 13/05/2026 02:55 UTC sur 2 images :
+
+- internal-apps/maformation:latest
+    - 0 CRITICAL, 2 HIGH, 8 MEDIUM, 14 LOW
+- internal-apps/macandidature:latest
+    - 1 CRITICAL (CVE-2024-XXXX), 3 HIGH, 11 MEDIUM, 18 LOW
+
+Le détail des CVE et l'état de patchage sont en annexe.
+\end{lstlisting}
+
+\section{Métadonnées du dossier}
+
+Chaque dossier produit porte~:
+
+\begin{itemize}
+  \item un numéro de version (\texttt{V1.42})~;
+  \item une date UTC précise de génération~;
+  \item le nombre de preuves collectées~;
+  \item le SHA-256 du PDF final~;
+  \item le SHA-256 du dossier précédent (\emph{hash chain})~;
+  \item un résumé des changements depuis le dernier cycle
+    (\emph{X créés, Y modifiés, Z supprimés}).
+\end{itemize}

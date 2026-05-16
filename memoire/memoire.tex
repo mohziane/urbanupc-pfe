@@ -1,0 +1,81 @@
+% ============================================================
+%  Mémoire de PFE — Master 2 Cybersécurité
+%  UrbanUpC SOC et l'outil HOMO-CI
+%  Université Paris Cité — 2025/2026
+% ============================================================
+
+\documentclass[11pt,a4paper,openright,twoside]{book}
+
+\newcommand{\memTitle}{Garder un dossier d'homologation à jour, automatiquement}
+\newcommand{\memSubtitle}{Le lab UrbanUpC et l'outil HOMO-CI}
+\newcommand{\memAuthor}{[Prénom NOM]}
+\newcommand{\memTutor}{[Tuteur universitaire]}
+\newcommand{\memCompany}{[Tuteur professionnel]}
+\newcommand{\memYear}{2025--2026}
+\newcommand{\memProgram}{Master 2 Cybersécurité --- Université Paris Cité}
+
+\input{settings/preamble}
+
+\begin{document}
+
+\frontmatter
+\pagenumbering{roman}
+
+\input{frontmatter/cover}
+\cleardoublepage
+
+\input{frontmatter/attestation}
+\cleardoublepage
+
+\input{frontmatter/thanks}
+\cleardoublepage
+
+\input{frontmatter/abstract}
+\cleardoublepage
+
+\setcounter{tocdepth}{2}
+\tableofcontents
+\cleardoublepage
+\listoffigures
+\cleardoublepage
+\listoftables
+\cleardoublepage
+
+\input{frontmatter/acronyms}
+\cleardoublepage
+
+% ============================================================
+\mainmatter
+\pagenumbering{arabic}
+
+\part{Contexte}
+\input{chapters/01-introduction}
+\input{chapters/02-etat-de-l-existant}
+
+\part{Le lab UrbanUpC}
+\input{chapters/03-architecture-lab}
+\input{chapters/04-applications-ad}
+\input{chapters/05-soc-wazuh}
+
+\part{L'outil HOMO-CI}
+\input{chapters/06-conception-outil}
+\input{chapters/07-implementation}
+
+\part{Ce qu'on a mesuré}
+\input{chapters/08-resultats}
+
+\part{Discussion et suite}
+\input{chapters/09-limites-conclusion}
+
+% ============================================================
+\backmatter
+
+\bibliographystyle{plain}
+\bibliography{settings/bibliography}
+
+\appendix
+\input{annexes/A-dossier}
+\input{annexes/B-code}
+\input{annexes/C-donnees}
+
+\end{document}

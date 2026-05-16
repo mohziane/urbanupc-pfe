@@ -1,0 +1,87 @@
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+
+\textbf{Mots-clés}~: homologation ANSSI, SOC, Wazuh, Active
+Directory, audit drift, evidence-as-code, automatisation,
+pipeline Python.
+
+\bigskip
+
+Une homologation ANSSI s'appuie sur un dossier daté et signé. Le
+problème, c'est que le SI continue à bouger après la signature~:
+règles réseau modifiées, nouvelles CVE, comptes Active Directory
+qui changent, règles SIEM qui dérivent. Au bout de quelques mois,
+le dossier ne décrit plus ce qui tourne réellement.
+
+Ce mémoire présente deux choses concrètes~:
+
+\begin{itemize}
+\item \textbf{Un lab d'expérimentation} appelé UrbanUpC, monté sur
+  Azure~: trois machines virtuelles (un contrôleur de domaine
+  Windows Server, un serveur web Linux exposant deux applications
+  PHP volontairement vulnérables, un SIEM Wazuh), un Active
+  Directory \texttt{corpnet.local} avec utilisateurs et groupes
+  réalistes. Le lab a généré 927 alertes Wazuh sur des scénarios
+  d'attaque web et AD documentés.
+
+\item \textbf{Un outil appelé HOMO-CI}, qui collecte automatiquement
+  les preuves techniques nécessaires à l'homologation (règles
+  NSG, CVE des images Docker, inventaire AD, règles Wazuh) et
+  regénère le dossier d'homologation au format ANSSI à chaque
+  exécution. C'est un pipeline Python avec des watchers
+  spécialisés, un stockage SQLite, un moteur de diff, et un
+  rendu Jinja2 vers Markdown puis PDF signé.
+\end{itemize}
+
+L'objectif n'est pas de remplacer l'homologation officielle, mais
+de \emph{réduire l'écart} entre le dossier et la réalité --- ce
+qu'on appelle dans la suite l'\emph{audit drift}.
+
+Les tests sur le lab donnent trois résultats~: l'outil couvre une
+partie significative des preuves techniques attendues, propage un
+changement Azure en quelques secondes, et tient un dossier à jour
+là où la version statique se périme. Les chiffres précis et les
+limites honnêtes sont en partie~IV.
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+\textbf{Keywords}~: ANSSI accreditation, SOC, Wazuh, Active
+Directory, audit drift, evidence-as-code, automation, Python
+pipeline.
+
+\bigskip
+
+An ANSSI accreditation relies on a dated, signed dossier. The
+problem is that the IS keeps moving after signature: firewall
+rules change, new CVEs appear, Active Directory accounts shift,
+SIEM rules drift. After a few months, the dossier no longer
+describes what is actually running.
+
+This thesis presents two concrete things:
+
+\begin{itemize}
+\item \textbf{An experimentation lab} called UrbanUpC, built on
+  Azure: three virtual machines (a Windows Server domain
+  controller, a Linux web server hosting two intentionally
+  vulnerable PHP apps, a Wazuh SIEM), an Active Directory
+  \texttt{corpnet.local} with realistic users and groups. The lab
+  produced 927 Wazuh alerts on documented web and AD attack
+  scenarios.
+
+\item \textbf{A tool called HOMO-CI}, which automatically collects
+  the technical evidence needed for accreditation (NSG rules,
+  Docker image CVEs, AD inventory, Wazuh rules) and regenerates
+  the ANSSI-format dossier on each run. It is a Python pipeline
+  with specialised watchers, SQLite storage, a diff engine, and
+  Jinja2 rendering to Markdown then signed PDF.
+\end{itemize}
+
+The goal is not to replace the official accreditation, but to
+\emph{reduce the gap} between the dossier and reality --- what we
+call \emph{audit drift}.
+
+Lab tests give three results: the tool covers a meaningful share
+of the expected technical evidence, propagates an Azure change in
+seconds, and keeps the dossier fresh where the static version
+goes stale. Exact numbers and honest limits are in part~IV.

@@ -1,0 +1,157 @@
+\chapter{Architecture du lab UrbanUpC}
+\label{ch:lab-archi}
+
+Ce chapitre décrit comment le lab est monté sur Azure. L'objectif
+en construisant ce lab était d'avoir un SI suffisamment réaliste
+pour avoir quelque chose à homologuer~: un domaine Active
+Directory, des applications web exposées, un SIEM qui détecte les
+attaques. Pas un jouet, mais pas non plus une infra de production.
+
+\section{Plateforme et budget}
+
+Tout tourne sur \textbf{Microsoft Azure}, région
+\texttt{swedencentral}. Le compte utilisé est un \emph{Azure for
+Students} (100\,\euro\ de crédit), ce qui force à être économe~:
+les VMs sont en taille \texttt{Standard\_B2s\_v2} (2 vCPU,
+8\,Go~RAM), et un auto-shutdown à 22h~UTC arrête tout pour la
+nuit.
+
+Le \emph{Resource Group} unique \texttt{RG-PFE-SOC} contient
+toute l'infra~: trois VMs, un \emph{Virtual Network} segmenté en
+trois subnets, trois \emph{Network Security Groups}, et les
+disques associés.
+
+\section{Vue d'ensemble}
+
+\begin{figure}[h]
+\centering
+\begin{small}
+\begin{verbatim}
+                    Internet
+                       |
+                 [IPs publiques]
+                       |
++=========[vnet-pfe 10.0.0.0/16]==========+
+|                                          |
+|  snet-dmz (10.0.1.0/24)     nsg-dmz     |
+|  +-------------------+                   |
+|  | vm-web01          | Ubuntu 22.04 LTS |
+|  | 10.0.1.10         | Docker + apps    |
+|  | :80 :443 :8888    | + agent Wazuh    |
+|  +---------+---------+                   |
+|            X (Deny-DMZ-to-LAN)           |
+|                                          |
+|  snet-lan (10.0.2.0/24)     nsg-lan     |
+|  +-------------------+                   |
+|  | vm-dc01           | Windows Srv 2022 |
+|  | 10.0.2.10         | AD corpnet.local |
+|  | :3389 (RDP)       | + agent Wazuh    |
+|  +---------+---------+                   |
+|            |                             |
+|  snet-mgmt (10.0.3.0/24)    nsg-mgmt    |
+|  +-------------------+                   |
+|  | vm-siem01         | Ubuntu 22.04 LTS |
+|  | 10.0.3.10         | Wazuh all-in-one |
+|  | :443 :1514 :1515  | + dashboard      |
+|  +-------------------+                   |
++==========================================+
+\end{verbatim}
+\end{small}
+\caption{Schéma réseau du lab UrbanUpC sur Azure.}
+\label{fig:archi-lab}
+\end{figure}
+
+\section{Les trois VMs}
+
+\begin{table}[h]
+\centering
+\caption{Les trois machines virtuelles du lab.}
+\label{tab:vms}
+\small
+\begin{tabularx}{\textwidth}{lXXXX}
+\toprule
+\textbf{VM} & \textbf{OS} & \textbf{Subnet} & \textbf{IP privée} & \textbf{Rôle} \\
+\midrule
+vm-web01 & Ubuntu 22.04 LTS & snet-dmz & 10.0.1.10 & Serveur web exposé sur Internet, héberge les applications PHP \\
+vm-dc01 & Windows Server 2022 Datacenter & snet-lan & 10.0.2.10 & Contrôleur de domaine Active Directory \texttt{corpnet.local} \\
+vm-siem01 & Ubuntu 22.04 LTS & snet-mgmt & 10.0.3.10 & SIEM Wazuh all-in-one (manager + indexer + dashboard) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+L'authentification est par clé SSH pour les deux Ubuntu, par mot
+de passe pour le DC Windows (contrainte du provisionnement Azure).
+Toutes les VMs ont un agent Wazuh installé qui remonte les logs
+vers \texttt{vm-siem01}.
+
+\section{Segmentation réseau}
+
+Trois subnets, trois NSG. La logique~:
+
+\begin{itemize}
+  \item \textbf{snet-dmz} (10.0.1.0/24)~: zone exposée à Internet.
+    Le serveur web y vit. Règle de sortie clé~: \texttt{Deny-DMZ-to-LAN}
+    interdit toute communication depuis la DMZ vers le LAN. Si
+    un attaquant compromet le web, il ne peut pas pivoter vers
+    l'AD directement.
+  \item \textbf{snet-lan} (10.0.2.0/24)~: réseau interne, où vit
+    l'AD. Pas d'accès Internet (\texttt{Deny-LAN-to-Internet}),
+    comme dans un vrai SI. Le DC ne peut sortir que vers le SIEM
+    pour les logs.
+  \item \textbf{snet-mgmt} (10.0.3.0/24)~: management. Seuls les
+    agents Wazuh (ports 1514/1515) et l'administrateur (SSH,
+    dashboard sur 443/55000) y accèdent.
+\end{itemize}
+
+C'est la segmentation classique DMZ / LAN / MGMT, à laquelle on a
+ajouté l'isolation \texttt{Deny-DMZ-to-LAN} qui est ce qui rend
+le lab intéressant pour tester un scénario de pivot.
+
+\section{Règles NSG principales}
+
+\begin{table}[h]
+\centering
+\caption{Règles NSG les plus structurantes (extrait).}
+\label{tab:nsg}
+\small
+\begin{tabularx}{\textwidth}{llcllX}
+\toprule
+\textbf{NSG} & \textbf{Règle} & \textbf{Pri} & \textbf{Sens} & \textbf{Action} & \textbf{Description} \\
+\midrule
+nsg-dmz & Allow-HTTP & 100 & In & Allow & 80/443 depuis Internet \\
+nsg-dmz & Allow-SSH-Admin & 110 & In & Allow & 22 depuis IP admin uniquement \\
+nsg-dmz & Deny-DMZ-to-LAN & 200 & Out & Deny & Tout vers 10.0.2.0/24 \\
+nsg-lan & Allow-RDP-Admin & 100 & In & Allow & 3389 depuis IP admin \\
+nsg-lan & Deny-LAN-to-Internet & 200 & Out & Deny & LAN ne sort pas sur Internet \\
+nsg-mgmt & Allow-Wazuh-Agents & 110 & In & Allow & 1514/1515 depuis vnet \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+L'IP admin est mise à jour à la main quand elle change, via
+\texttt{az network nsg rule update}. C'est pénible mais
+acceptable pour un lab.
+
+\section{Provisionnement reproductible}
+
+Tout l'environnement peut être recréé à partir de quatre scripts~:
+
+\begin{itemize}
+  \item \texttt{infra/azure-deploy.sh}~: crée le Resource Group,
+    le VNet, les NSG, les trois VMs. Idempotent.
+  \item \texttt{infra/vm-web01-setup.sh}~: installe Docker et la
+    stack applicative sur le serveur web.
+  \item \texttt{infra/vm-siem01-setup.sh}~: installe Wazuh
+    all-in-one (manager + indexer + dashboard) sur le SIEM.
+  \item \texttt{infra/vm-dc01-setup.ps1}~: installe AD~DS et
+    crée le domaine \texttt{corpnet.local} sur le contrôleur.
+\end{itemize}
+
+Cette reproductibilité est importante~: c'est elle qui permet à
+l'outil HOMO-CI d'avoir un état attendu à comparer à l'état réel.
+
+\begin{takeaway}
+Le lab tient sur 3 VMs Azure très modestes, segmentées en
+DMZ/LAN/MGMT. C'est volontairement minimaliste, pour rester
+dans le crédit étudiant et garder l'infra compréhensible.
+\end{takeaway}

@@ -1,0 +1,444 @@
+{# ============================================================
+   Dossier d'homologation HOMO-CI — Template Jinja2
+   Couverture : 9 étapes ANSSI selon le guide "Homologation
+   de sécurité en 9 étapes simples" (avril 2020).
+   ============================================================ #}
+
+<div class="cover-page">
+
+<div class="cover-logo">{{ si.nom }} — Direction Cybersécurité</div>
+<div class="cover-classification">DIFFUSION RESTREINTE</div>
+<div class="cover-dossier-mark">Régénéré par HOMO-CI</div>
+
+<div class="cover-title">Dossier d'Homologation<br>de Sécurité</div>
+
+<div class="cover-subtitle">
+SI {{ si.nom }} — {{ si.description }}<br>
+Régénéré le {{ generated_at }}
+</div>
+
+<div class="cover-meta-block">
+<div class="cover-meta-row"><strong>Référence :</strong> <span>HOMO-CI-{{ si.nom }}-{{ version }}</span></div>
+<div class="cover-meta-row"><strong>Méthodologie :</strong> <span>Guide ANSSI — Homologation en 9 étapes (avril 2020)</span></div>
+<div class="cover-meta-row"><strong>Pipeline :</strong> <span>HOMO-CI v0.1</span></div>
+<div class="cover-meta-row"><strong>Évidences :</strong> <span>{{ evidence_count }} preuves auto-collectées · {{ categories_count }} catégories</span></div>
+<div class="cover-meta-row"><strong>Date de génération :</strong> <span>{{ generated_at }} UTC</span></div>
+<div class="cover-meta-row"><strong>Durée d'homologation visée :</strong> <span>{{ demarche.duree_homologation_mois }} mois</span></div>
+</div>
+
+<div class="cover-spacer"></div>
+
+<div class="cover-footer">
+Document produit automatiquement par le pipeline HOMO-CI. Toute
+incohérence avec l'état réel du SI ouvre une <strong>dérive d'audit</strong>
+(modèle conceptuel <em>audit drift</em>, mémoire §4.1) et déclenche
+une alerte au RSSI dans les 24 heures.
+</div>
+
+</div>
+
+# Pièce 1 — Plan d'homologation
+
+*Étapes ANSSI 1 à 3 : périmètre, type de démarche, acteurs.*
+
+## 1.1 Périmètre du SI homologué (étape 1)
+
+### Périmètre fonctionnel
+
+Le présent dossier homologue le système d'information **{{ si.nom }}**
+(*{{ si.description }}*), hébergé sur **{{ si.hebergeur }}** dans le
+*Resource Group* `{{ si.resource_group }}` (VNet `{{ si.reseau_virtuel }}`,
+`{{ si.cidr }}`). Le périmètre fonctionnel couvre :
+
+{% for item in perimetre.fonctionnel %}
+- {{ item }}
+{%- endfor %}
+
+### Exclusions explicites
+
+{% for item in perimetre.exclusions %}
+- {{ item }}
+{%- endfor %}
+
+### Classification du SI
+
+| Critère | Niveau | Justification |
+|---|---|---|
+| Sensibilité des données | **{{ perimetre.classification.sensibilite }}** | Données personnelles + parcours scolaire |
+| Exposition publique | **{{ perimetre.classification.exposition }}** | Portail accessible 24×7 |
+| Criticité métier | **{{ perimetre.classification.criticite }}** | Cycle d'inscription dépendant |
+| Niveau de sécurité visé | **{{ perimetre.classification.niveau_cible }}** | OWASP ASVS L2 + ANSSI |
+
+## 1.2 Type de démarche d'homologation (étape 2)
+
+Le SI {{ si.nom }} relève d'une démarche de **type {{ demarche.type }}**
+— *{{ demarche.intitule }}* — selon la classification du guide ANSSI.
+Justification :
+
+{{ demarche.justification }}
+
+Durée d'homologation visée : **{{ demarche.duree_homologation_mois }} mois**
+à compter de la signature, avec revues intermédiaires à 3 et 6 mois,
+puis renouvellement triennal.
+
+## 1.3 Acteurs de l'homologation (étape 3)
+
+| Rôle | Nom | Responsabilité |
+|---|---|---|
+{%- for a in acteurs %}
+| {{ a.role }} | {{ a.nom }} | {{ a.responsabilite }} |
+{%- endfor %}
+
+## 1.4 Engagement de l'AQSSI
+
+L'AQSSI de {{ si.nom }} reconnaît son rôle de **responsable de
+l'homologation** du présent SI et s'engage à :
+
+1. Examiner l'ensemble des pièces de ce dossier ;
+2. Prononcer une décision motivée dans un délai n'excédant pas
+   30 jours calendaires ;
+3. Prendre acte des risques résiduels et en accepter formellement
+   la liste ;
+4. Assumer la responsabilité du maintien dans le temps du niveau
+   de sécurité homologué ;
+5. Garantir la mise à disposition des moyens nécessaires au PACS.
+
+# Pièce 2 — Cartographie du système d'information (étape 4)
+
+## 2.1 Cartographie fonctionnelle — populations utilisatrices
+
+| Profil | Volume estimé | Données manipulées | Mode d'authentification |
+|---|---|---|---|
+{%- for p in populations %}
+| {{ p.profil }} | {{ p.volume }} | {{ p.donnees }} | {{ p.authn }} |
+{%- endfor %}
+
+## 2.2 Inventaire des données traitées
+
+| Catégorie | Sensibilité | Volume | Rétention | Localisation |
+|---|---|---|---|---|
+{%- for d in donnees %}
+| {{ d.categorie }} | {{ d.sensibilite }} | {{ d.volume }} | {{ d.retention }} | {{ d.localisation }} |
+{%- endfor %}
+
+## 2.3 Topologie réseau et règles NSG (auto-collectées)
+
+{% if nsg_rules %}
+**{{ nsg_rules | length }} règles** ont été collectées automatiquement
+par le watcher `wc_nsg` à {{ generated_at }} UTC.
+
+| NSG | Règle | Prio. | Direction | Action | Protocole | Sources | Ports cibles |
+|---|---|:---:|---|:---:|:---:|---|---|
+{%- for r in nsg_rules %}
+| {{ r.payload.nsg }} | {{ r.payload.name }} | {{ r.payload.priority }} | {{ r.payload.direction }} | {{ r.payload.access }} | {{ r.payload.protocol }} | {{ r.payload.source_addresses | join(', ') }} | {{ r.payload.destination_ports | join(', ') }} |
+{%- endfor %}
+{% else %}
+*(Aucune règle NSG collectée — vérifier la disponibilité du watcher `wc_nsg`.)*
+{% endif %}
+
+# Pièce 3 — Analyse de risque EBIOS Risk Manager (étape 5)
+
+Le présent dossier s'appuie sur l'analyse de risque consignée dans
+le document **{{ ebios.reference }}** (joint au présent dossier).
+Cette analyse, conduite selon la méthode *EBIOS Risk Manager*
+publiée par l'ANSSI en octobre 2018, identifie :
+
+- **{{ ebios.valeurs_metier }} valeurs métier** ;
+- **{{ ebios.biens_supports }} biens supports** ;
+- **{{ ebios.evenements_redoutes }} événements redoutés** ;
+- **{{ ebios.sources_de_risque }} sources de risque** retenues ;
+- **{{ ebios.objectifs_vises }} objectifs visés** par ces sources ;
+- **{{ ebios.scenarios_strategiques }} scénarios stratégiques** ;
+- **{{ ebios.scenarios_operationnels }} scénarios opérationnels** modélisés.
+
+## 3.1 Évolution du niveau de risque global
+
+Avant application du Plan d'Amélioration Continue de la Sécurité
+(PACS), **{{ ebios.risques_critiques_avant_pacs }} scénarios**
+étaient cotés au niveau critique (≥ 12/16). Après application des
+mesures prioritaires, **{{ ebios.risques_critiques_apres_pacs }}
+scénarios** demeurent au niveau critique.
+
+## 3.2 Registre des risques résiduels acceptés
+
+L'AQSSI prend acte des risques résiduels suivants et en accepte
+formellement la persistance, sous réserve des actions correctives
+identifiées.
+
+| Code | Désignation | Niveau | Échéance de revue | Justification |
+|---|---|:---:|---|---|
+{%- for r in ebios.risques_residuels %}
+| {{ r.code }} | {{ r.designation }} | {{ r.niveau }} | {{ r.echeance }} | {{ r.justification }} |
+{%- endfor %}
+
+# Pièce 4 — Politique de Sécurité du SI (étape 6)
+
+## 4.1 Principes directeurs
+
+La présente PSSI repose sur quatre principes non négociables :
+
+{% for p in pssi.principes %}
+1. {{ p }}
+{%- endfor %}
+
+## 4.2 Politique cryptographique
+
+| Catégorie | Algorithme retenu | Justification |
+|---|---|---|
+{%- for c in pssi.cryptographie %}
+| {{ c.domaine }} | {{ c.algo }} | {{ c.justification }} |
+{%- endfor %}
+
+## 4.3 Sanctions et application
+
+{{ pssi.sanctions }}
+
+## 4.4 Mesures techniques en place (auto-vérifiées par HOMO-CI)
+
+Le pipeline HOMO-CI a collecté **{{ evidence_count }} preuves
+techniques** à la date de génération, distribuées sur
+**{{ categories_count }} catégories**. Le détail figure aux pièces 2
+et 5 du présent dossier.
+
+# Pièce 5 — Rapport d'audit technique (étape 7)
+
+## 5.1 Cadre de l'audit
+
+{{ audit.cadre }}.
+
+L'audit s'appuie sur les référentiels suivants :
+
+{% for r in audit.referentiels %}
+- {{ r }}
+{%- endfor %}
+
+Posture retenue : **{{ audit.posture }}**.
+Nombre de scénarios testés : **{{ audit.scenarios_testes }}**.
+
+## 5.2 Synthèse des vulnérabilités CVE (auto-collectées)
+
+{% if cve_findings %}
+Le watcher `wc_cve` a identifié **{{ cve_findings | length }}
+vulnérabilités** sur les images Docker du périmètre.
+
+| CVE | Composant | Sévérité | CVSS | Statut |
+|---|---|:---:|:---:|---|
+{%- for c in cve_findings %}
+| {{ c.payload.vulnerability_id }} | {{ c.payload.package }} {{ c.payload.installed_version }} | {{ c.payload.severity }} | {{ c.payload.cvss_score or 'n/a' }} | {{ 'PATCH → ' + c.payload.fixed_version if c.payload.fixed_version else 'AUCUN CORRECTIF' }} |
+{%- endfor %}
+{% else %}
+*(Aucune CVE collectée — vérifier la disponibilité du watcher `wc_cve` (Trivy installé ?).)*
+{% endif %}
+
+## 5.3 Synthèse globale de l'audit
+
+{{ audit.resultat_synthese }}.
+
+# Pièce 6 — Mesures de sécurité retenues (étape 6, suite)
+
+## 6.1 Plan d'Amélioration Continue de la Sécurité (PACS)
+
+| Code | Action | Prio. | Effort | Échéance | Statut |
+|:---:|---|:---:|:---:|:---:|---|
+{%- for a in pacs %}
+| {{ a.code }} | {{ a.action }} | {{ a.priorite }} | {{ a.effort_jh }} j-h | {{ a.echeance }} | {{ a.statut }} |
+{%- endfor %}
+
+## 6.2 Conformité aux référentiels
+
+| Référentiel | Référence | Statut | Couverture |
+|---|---|---|---|
+{%- for r in referentiels %}
+| {{ r.nom }} | {{ r.reference }} | {{ r.statut }} | {{ r.couverture }} |
+{%- endfor %}
+
+# Pièce 7 — Procédures opérationnelles
+
+Les procédures suivantes encadrent l'exploitation quotidienne du SI :
+
+1. **Gestion des incidents de sécurité** — détection (SOC, MTTD ≤ 5 s)
+   → qualification (15 min) → confinement → éradication →
+   recouvrement → leçons retenues. Notification CNIL dans les 72 h
+   pour les violations de données.
+2. **Gestion des accès** — workflow on-boarding documenté ;
+   off-boarding sous 24 h après cessation ; revue trimestrielle
+   des comptes inactifs.
+3. **Gestion des changements** — classification standard / normale /
+   majeure / urgente ; évaluation d'impact sécurité par le RSSI.
+4. **Gestion des sauvegardes** — sauvegardes quotidiennes, tests de
+   restauration trimestriels, RTO < 4 h, RPO < 24 h.
+5. **Revue des règles SIEM** — mensuelle ; *tuning* documenté ;
+   audit des règles sans déclenchement > 6 mois.
+6. **Notification CNIL** — procédure formelle DPO, délai 72 h.
+7. **Revue d'homologation** — à 3, 6 et 12 mois ; comité plénier ;
+   PV conservé 10 ans.
+
+# Pièce 8 — Tableau de bord de suivi (étape 9)
+
+## 8.1 Indicateurs clés de risque (KRI)
+
+| Code | Indicateur | Seuil d'alerte | Fréquence | Responsable |
+|---|---|---|:---:|---|
+{%- for k in kri %}
+| {{ k.code }} | {{ k.indicateur }} | {{ k.seuil }} | {{ k.frequence }} | {{ k.responsable }} |
+{%- endfor %}
+
+## 8.2 Cycle de revue
+
+| Échéance | Activité | Livrable |
+|---|---|---|
+| Mensuelle | Revue des KRI par le RSSI | Note synthétique |
+| Trimestrielle | Bilan KRI + revue risques résiduels | Note de revalidation |
+| Annuelle | Révision complète EBIOS RM + dossier | Nouvelle version |
+
+## 8.3 Conditions de remise en question de l'homologation
+
+L'homologation est réexaminée immédiatement dans les cas suivants :
+
+- KRI au seuil d'alerte non résolu sous 30 jours ;
+- vulnérabilité CVSS ≥ 9 non couverte par le PACS ;
+- incident de sécurité significatif sur VM cotée G3 ou plus ;
+- modification de l'écosystème (PP d'exposition ≥ 3) ;
+- évolution réglementaire (ANSSI, NIS 2).
+
+# Pièce 9 — Décision d'homologation (étape 8)
+
+<div class="box-decision">
+
+## DÉCISION D'HOMOLOGATION DE SÉCURITÉ
+
+**Référence :** HOMO-CI-{{ si.nom }}-{{ version }}-DEC
+
+**Système d'information homologué :** {{ si.nom }} — {{ si.description }}
+
+**Périmètre détaillé :** se référer aux **Pièces 1 et 2** du
+présent dossier.
+
+**Date de la décision :** ____ / ____ / 20__
+
+**Durée d'homologation :** **{{ demarche.duree_homologation_mois }} mois**
+à compter de la signature.
+
+</div>
+
+## 9.1 Pièces examinées par le comité d'homologation
+
+| Pièce | Référence | Statut |
+|---|---|:---:|
+| 1 — Plan d'homologation | Pièce 1 du présent dossier | ✓ |
+| 2 — Cartographie | Pièce 2 du présent dossier | ✓ |
+| 3 — Analyse de risque EBIOS RM | {{ ebios.reference }} | ✓ |
+| 4 — PSSI | Pièce 4 du présent dossier | ✓ |
+| 5 — Rapport d'audit | Pièce 5 du présent dossier | ✓ |
+| 6 — Mesures de sécurité retenues | Pièce 6 du présent dossier | ✓ |
+| 7 — Procédures opérationnelles | Pièce 7 du présent dossier | ✓ |
+| 8 — Tableau de bord de suivi | Pièce 8 du présent dossier | ✓ |
+
+## 9.2 Constats du comité
+
+- L'**analyse de risque** identifie {{ ebios.scenarios_operationnels }}
+  scénarios opérationnels dont
+  {{ ebios.risques_critiques_apres_pacs }} demeurent au niveau
+  critique après application du PACS.
+- La **chaîne de détection** SIEM est opérationnelle et couvre
+  l'ensemble des scénarios identifiés.
+- Le **PACS** comprend {{ pacs | length }} actions, dont la majorité
+  est appliquée à la date du présent dossier.
+
+## 9.3 Décision
+
+<div class="box-decision">
+
+L'Autorité Qualifiée pour la Sécurité des SI (AQSSI) du SI
+{{ si.nom }} **DÉCIDE** (cocher la case correspondante) :
+
+- ☐ **Avis FAVORABLE** — Homologation prononcée pour
+  {{ demarche.duree_homologation_mois }} mois, sous les conditions
+  énoncées à l'article 2.
+- ☐ **Avis FAVORABLE AVEC RÉSERVES** — Homologation prononcée à
+  titre conditionnel, sous réserve des conditions complémentaires
+  énoncées à l'article 3.
+- ☐ **Avis DÉFAVORABLE** — Homologation refusée.
+
+**ARTICLE 2.** L'homologation est conditionnée au respect des
+engagements suivants :
+
+a. Application des actions prioritaires du PACS sous 3 jours
+   (R2, R5.2, R5.3, R5.4).
+b. Application des actions secondaires sous 14 jours
+   (R1, R3, R5.1, R5.5, R6, R9).
+c. Tenue des revues intermédiaires à 3 et 6 mois.
+
+**ARTICLE 3.** Réserves complémentaires : ____________________________
+
+____________________________________________________________________.
+
+**ARTICLE 4.** La présente décision pourra être réexaminée à tout
+moment dans les cas énumérés en Pièce 8 §8.3.
+
+</div>
+
+## 9.4 Signatures
+
+|  |  |
+|---|---|
+| **AQSSI** — décision d'homologation | **RSSI** — avis technique |
+| Nom, fonction : | Nom, fonction : |
+| Signature et date : | Signature et date : |
+| **DPO** — visa données personnelles | **Risk Manager** — pour information |
+| Nom, fonction : | Nom, fonction : |
+| Signature et date : | Signature et date : |
+
+# Annexe A — Provenance et auditabilité du dossier
+
+## A.1 Chaîne de hash SHA-256
+
+Le présent dossier appartient à une **chaîne de snapshots
+versionnés** dont chaque maillon référence le SHA-256 du précédent.
+Cette chaîne constitue la **chain of custody** auditable du
+dispositif d'homologation continue.
+
+La signature de ce dossier est calculée selon :
+
+```
+signature = SHA-256( pdf_hash || parent_hash || version )
+```
+
+Vérification de la cohérence :
+
+```
+homo-ci verify
+```
+
+## A.2 Méta-informations de génération
+
+- **Cycle d'exécution :** {{ generated_at }} UTC
+- **Version :** {{ version }}
+- **Pipeline :** HOMO-CI v0.1
+- **Total de preuves auto-collectées :** {{ evidence_count }}
+- **Catégories distinctes :** {{ categories_count }}
+
+# Annexe B — Glossaire des sigles
+
+| Sigle | Définition |
+|---|---|
+| AQSSI | Autorité Qualifiée pour la Sécurité des SI |
+| RSSI | Responsable de la Sécurité des SI |
+| DPO | Délégué à la Protection des Données |
+| PSSI | Politique de Sécurité du SI |
+| PACS | Plan d'Amélioration Continue de la Sécurité |
+| KRI | Key Risk Indicator |
+| EBIOS RM | Expression des Besoins et Identification des Objectifs de Sécurité — Risk Manager |
+| RGS | Référentiel Général de Sécurité |
+| RGPD | Règlement Général sur la Protection des Données |
+| NIS 2 | Network and Information Security Directive 2 |
+| MITRE ATT&CK | Adversarial Tactics, Techniques and Common Knowledge |
+| OWASP ASVS | Application Security Verification Standard |
+| SOC-CMM | SOC Capability Maturity Model |
+
+---
+
+*Document généré automatiquement par HOMO-CI v0.1. Toute modification
+manuelle est sans effet et sera écrasée à la prochaine régénération.
+Pour mettre à jour le contenu institutionnel, modifier
+`config/dossier_context.yaml`.*

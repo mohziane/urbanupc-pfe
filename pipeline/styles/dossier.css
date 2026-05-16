@@ -1,0 +1,34 @@
+@page {
+  size: A4;
+  margin: 25mm 22mm 22mm 22mm;
+  @top-left { content: "HOMO-CI — Dossier d'homologation continue"; font-family: "Inter",sans-serif; font-size: 8.5pt; color: #6b7280; }
+  @top-right { content: "DR"; font-family: "Inter",sans-serif; font-size: 8.5pt; color: #6b7280; }
+  @bottom-right { content: "p. " counter(page) " / " counter(pages); font-family: "Inter",sans-serif; font-size: 8.5pt; color: #374151; }
+}
+@page :first { @top-left { content: none } @top-right { content: none } @bottom-right { content: none } }
+@page cover { margin: 0; @top-left {content:none} @top-right {content:none} @bottom-right {content:none} }
+
+.cover-page { page: cover; page-break-after: always; height: 297mm; width: 210mm; padding: 30mm 25mm; box-sizing: border-box; display: flex; flex-direction: column; background: linear-gradient(135deg, #0b2545 0%, #13315c 100%); color: #f5f9ff; }
+.cover-logo { font-size: 10pt; letter-spacing: .25em; color: #93c5fd; text-transform: uppercase; }
+.cover-classification { display: inline-block; margin-top: 5mm; padding: 3px 12px; background: #b91c1c; color: white; font-size: 9pt; font-weight: 700; letter-spacing: .1em; border-radius: 3px; }
+.cover-dossier-mark { display: inline-block; margin-top: 3mm; padding: 3px 12px; background: #15803d; color: white; font-size: 9pt; font-weight: 700; letter-spacing: .1em; border-radius: 3px; }
+.cover-title { font-size: 26pt; font-weight: 700; margin: 14mm 0 5mm; line-height: 1.15; font-family: "Inter",sans-serif; }
+.cover-subtitle { font-size: 13pt; color: #cbd5e1; margin-bottom: 8mm; }
+.cover-meta-block { background: rgba(255,255,255,.08); padding: 5mm 6mm; border-left: 3px solid #60a5fa; margin: 8mm 0; }
+.cover-meta-row { display: flex; gap: 6mm; margin: 1.5mm 0; font-size: 10pt; }
+.cover-meta-row strong { color: #f1f5f9; min-width: 38mm; }
+.cover-spacer { flex: 1; }
+.cover-footer { font-size: 8.5pt; color: #94a3b8; border-top: 1px solid #334155; padding-top: 4mm; line-height: 1.4; }
+
+html { font-family: "Charter","Georgia",serif; font-size: 10.5pt; line-height: 1.5; color: #1f2937; }
+body { margin: 0; counter-reset: figure table; }
+h1, h2, h3 { font-family: "Inter",sans-serif; color: #0b2545; }
+h1 { font-size: 18pt; margin: 1.4rem 0 .8rem; padding-bottom: .3rem; border-bottom: 2px solid #0b2545; page-break-before: always; }
+h1:first-of-type { page-break-before: avoid; }
+h2 { font-size: 13pt; margin: 1.2rem 0 .5rem; border-left: 4px solid #1d4ed8; padding-left: .5rem; }
+table { border-collapse: collapse; width: 100%; margin: .8rem 0 1.2rem; font-size: 9pt; page-break-inside: avoid; }
+th, td { border: 1px solid #d1d5db; padding: 4px 8px; vertical-align: top; text-align: left; }
+th { background: #0b2545; color: #f5f9ff; font-weight: 600; }
+tr:nth-child(even) td { background: #f9fafb; }
+code { background: #e5e7eb; padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 9pt; }
+pre { background: #0f172a; color: #e2e8f0; padding: 10px 14px; border-radius: 6px; font-size: 8.5pt; }

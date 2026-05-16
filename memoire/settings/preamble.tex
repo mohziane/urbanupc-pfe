@@ -1,0 +1,188 @@
+% ============================================================
+%  Préambule — packages et configuration
+% ============================================================
+
+% Encodage et langue
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{csquotes}
+
+% Typographie
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[a4paper,top=2.5cm,bottom=2.5cm,inner=2.8cm,outer=2.2cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\setlength{\headheight}{14pt}
+
+% Mathématiques
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+
+% Figures et tableaux
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{longtable}
+\usepackage{caption}
+\usepackage{subcaption}
+\captionsetup[figure]{labelfont=bf,format=plain,font=small}
+\captionsetup[table]{labelfont=bf,format=plain,font=small}
+
+% Couleurs
+\usepackage[dvipsnames,table]{xcolor}
+\definecolor{anssi}{HTML}{003366}
+\definecolor{soft}{HTML}{2A5D8F}
+\definecolor{lightbg}{HTML}{F0F4F8}
+\definecolor{codebg}{HTML}{F6F8FA}
+\definecolor{codecomment}{HTML}{6A737D}
+\definecolor{codestring}{HTML}{032F62}
+\definecolor{codekeyword}{HTML}{D73A49}
+
+% Code (listings)
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  commentstyle=\color{codecomment}\itshape,
+  keywordstyle=\color{codekeyword}\bfseries,
+  stringstyle=\color{codestring},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  frame=single,
+  framerule=0pt,
+  rulecolor=\color{lightbg},
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=b,
+  xleftmargin=10pt,
+  inputencoding=utf8,
+  extendedchars=true,
+  literate=%
+    {é}{{\'e}}1 {è}{{\`e}}1 {ê}{{\^e}}1 {ë}{{\"e}}1
+    {à}{{\`a}}1 {â}{{\^a}}1 {ä}{{\"a}}1
+    {ô}{{\^o}}1 {ö}{{\"o}}1
+    {î}{{\^\i}}1 {ï}{{\"\i}}1
+    {ù}{{\`u}}1 {û}{{\^u}}1 {ü}{{\"u}}1
+    {ç}{{\c{c}}}1 {É}{{\'E}}1 {È}{{\`E}}1
+    {œ}{{\oe}}1 {Œ}{{\OE}}1 {æ}{{\ae}}1 {Æ}{{\AE}}1
+    {€}{{\euro}}1 {—}{{---}}1 {–}{{--}}1
+    {«}{{\guillemotleft{}}}1 {»}{{\guillemotright{}}}1
+    {“}{{``}}1 {”}{{''}}1 {‘}{{`}}1 {’}{{'}}1
+    {…}{{\ldots}}1 {·}{{$\cdot$}}1
+}
+\lstdefinelanguage{Python3}{
+  language=Python,
+  morekeywords={async,await,True,False,None,match,case},
+}
+
+% Titres de chapitres / sections
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\Huge\bfseries\color{anssi}}
+  {\filright\Large CHAPITRE \thechapter}
+  {1ex}
+  {\titlerule\vspace{1ex}\filright}
+\titleformat{\section}{\normalfont\Large\bfseries\color{anssi}}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{soft}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries\color{soft}}{\thesubsubsection}{1em}{}
+
+% En-têtes et pieds de page
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\nouppercase{\leftmark}}
+\fancyhead[RO]{\nouppercase{\rightmark}}
+\fancyfoot[LE,RO]{\thepage}
+\fancyfoot[RE,LO]{\small\textit{Mémoire PFE — UrbanUpC SOC + HOMO-CI}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+
+% Hyperliens
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=anssi,
+  urlcolor=soft,
+  citecolor=anssi,
+  pdftitle={\memTitle},
+  pdfauthor={\memAuthor},
+}
+% cleveref désactivé : il plantait fatalement sur les références encore
+% indéfinies au premier passage. \autoref (hyperref) fait l'équivalent
+% (« chapitre N », « section N ») et n'émet qu'un warning si la ref manque.
+% On gère aussi la forme avec liste : \cref{a,b,c} -> "chapitre N, N et N".
+\makeatletter
+\newcommand{\cref@list}[1]{%
+  \@cref@list@helper#1,\@nil%
+}
+\def\@cref@list@helper#1,#2\@nil{%
+  \autoref{#1}%
+  \def\@cref@rest{#2}%
+  \ifx\@cref@rest\@empty\else
+    \@cref@list@continue#2\@nil
+  \fi
+}
+\def\@cref@list@continue#1,#2\@nil{%
+  \def\@cref@rest{#2}%
+  \ifx\@cref@rest\@empty
+    \space et~\autoref{#1}%
+  \else
+    , \autoref{#1}%
+    \@cref@list@continue#2\@nil
+  \fi
+}
+\providecommand{\cref}[1]{\cref@list{#1}}
+\providecommand{\Cref}[1]{\cref@list{#1}}
+\makeatother
+% Noms français pour \autoref
+\addto\extrasfrench{%
+  \def\chapterautorefname{chapitre}%
+  \def\sectionautorefname{section}%
+  \def\subsectionautorefname{section}%
+  \def\subsubsectionautorefname{section}%
+  \def\figureautorefname{figure}%
+  \def\tableautorefname{tableau}%
+  \def\equationautorefname{équation}%
+  \def\partautorefname{partie}%
+}
+
+% Boîtes (encadrés) — chargement allégé (pas besoin de [most])
+\usepackage[skins,breakable]{tcolorbox}
+\newtcolorbox{contributionbox}[1]{
+  colback=lightbg,colframe=anssi,fonttitle=\bfseries,
+  title=#1,enhanced,boxrule=0.7pt,
+}
+\newtcolorbox{takeaway}{
+  colback=anssi!5,colframe=anssi,fonttitle=\bfseries,
+  title=À retenir,enhanced,boxrule=0.7pt,
+}
+\newtcolorbox{warning}{
+  colback=red!5,colframe=red!50!black,fonttitle=\bfseries,
+  title=Limite,enhanced,boxrule=0.7pt,
+}
+
+% Glossaire / acronymes
+\usepackage{acronym}
+
+% Symbols pour les croix/checks
+\usepackage{eurosym}
+\usepackage{pifont}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+
+% Espaces verticaux
+\setlength{\parskip}{0.6em}
+\setlength{\parindent}{0pt}
+
+% Référence de hyperref aux contributions
+\newcommand{\contribref}[1]{\textbf{C-#1}}
+\newcommand{\hypref}[1]{\textbf{H#1}}
+\newcommand{\sqref}[1]{\textbf{SQ-#1}}
+\newcommand{\todofig}[1]{\textcolor{red}{[\textbf{FIGURE À AJOUTER :} #1]}}
+\newcommand{\todocapture}[1]{\textcolor{red}{[\textbf{CAPTURE À AJOUTER :} #1]}}

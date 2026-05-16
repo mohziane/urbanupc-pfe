@@ -1,0 +1,13 @@
+[Unit]
+Description=Docker events watcher (for Wazuh container-escape detection)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/docker-events-watcher.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

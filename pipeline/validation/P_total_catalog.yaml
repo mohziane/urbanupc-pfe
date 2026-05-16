@@ -1,0 +1,179 @@
+# ════════════════════════════════════════════════════════════════════
+# Catalogue P_total — Preuves d'audit attendues par une homologation
+# ANSSI de type 2 sur un Espace Numérique de Travail universitaire.
+#
+# Méthodologie : triangulation de TROIS référentiels (T-1.2 §1.4.1) :
+#   S1. ANSSI — Homologation en 9 étapes simples (avril 2020)
+#   S2. ISO/IEC 27002:2022 — 93 contrôles de sécurité
+#   S3. OWASP ASVS v4.0.3 — niveau L2 (~280 contrôles applicatifs)
+#
+# Chaque entrée du catalogue est classée en :
+#   A : automatique totale  (collecte par script/API, machine-readable,
+#                            interprétation sans jugement contextuel)
+#   B : semi-automatique    (collecte auto + qualification/validation
+#                            humaine, ou format mixte)
+#   C : manuel              (audit organisationnel, interview, document
+#                            signé, jugement humain requis)
+#
+# Le codage suit le double-aveugle : critères opposables fixés *a priori*
+# en T-1.2 §1.4.2, sans ajustement post-hoc.
+# ════════════════════════════════════════════════════════════════════
+
+meta:
+  version: "1.0"
+  date: "2026-05-15"
+  scope: "ENT universitaire, démarche d'homologation type 2"
+  references:
+    S1: "ANSSI — L'homologation de sécurité en 9 étapes simples (avril 2020)"
+    S2: "ISO/IEC 27002:2022 — 93 contrôles"
+    S3: "OWASP ASVS v4.0.3 — niveau L2"
+
+# Échelle de codage (rappel)
+codage:
+  A:
+    label: "Automatique totale"
+    poids: 1.0
+    criteres:
+      - "Collectable par script, API ou scan périodique"
+      - "Sans intervention humaine répétée"
+      - "Interprétation sans jugement contextuel"
+      - "Sortie machine-readable (JSON, CSV, XML…)"
+  B:
+    label: "Semi-automatique"
+    poids: 0.5
+    criteres:
+      - "Collecte automatisable mais validation humaine légère requise"
+      - "OU jugement contextuel limité"
+      - "OU format mixte (auto + complément humain)"
+  C:
+    label: "Manuel"
+    poids: 0.0
+    criteres:
+      - "Audit organisationnel, observation, interview"
+      - "Document signé ou rédaction libre"
+      - "Jugement humain contextuel requis"
+
+# ════════════════════════════════════════════════════════════════════
+# CATALOGUE — 96 entrées
+# ════════════════════════════════════════════════════════════════════
+catalog:
+
+# ─── Étape 1 : Périmètre ─────────────────────────────────────────────
+- {id: P-001, anssi: 1, name: "Déclaration formelle du périmètre fonctionnel",   class: C, justif: "Note rédigée par la direction"}
+- {id: P-002, anssi: 1, name: "Liste des exclusions explicites",                  class: C, justif: "Décision documentée"}
+- {id: P-003, anssi: 1, name: "Classification sensibilité/exposition/criticité",  class: B, justif: "Auto-déductible partiellement (volumes, ports), classification reste humaine"}
+
+# ─── Étape 2 : Type de démarche ──────────────────────────────────────
+- {id: P-004, anssi: 2, name: "Justification du type de démarche retenu",         class: C, justif: "Argumentaire humain"}
+- {id: P-005, anssi: 2, name: "Durée d'homologation visée",                       class: C, justif: "Décision de l'AQSSI"}
+
+# ─── Étape 3 : Acteurs ────────────────────────────────────────────────
+- {id: P-006, anssi: 3, name: "Acte de désignation AQSSI titulaire",              class: C, justif: "Document signé"}
+- {id: P-007, anssi: 3, name: "Acte de désignation AQSSI suppléant",              class: C, justif: "Document signé"}
+- {id: P-008, anssi: 3, name: "Acte de désignation RSSI",                         class: C, justif: "Document signé"}
+- {id: P-009, anssi: 3, name: "Acte de désignation DPO",                          class: C, justif: "Document signé, art. 37 RGPD"}
+- {id: P-010, anssi: 3, name: "Composition formalisée du comité d'homologation",  class: C, justif: "Note de service"}
+- {id: P-011, anssi: 3, name: "Règles de fonctionnement du comité",               class: C, justif: "Charte interne"}
+- {id: P-012, anssi: 3, name: "Calendrier des revues d'homologation",             class: B, justif: "Auto-généré à partir du PACS, validation humaine"}
+
+# ─── Étape 4 : Cartographie ──────────────────────────────────────────
+- {id: P-013, anssi: 4, name: "Inventaire des machines virtuelles",                class: A, justif: "Azure Resource Manager SDK"}
+- {id: P-014, anssi: 4, name: "Inventaire des conteneurs Docker",                  class: A, justif: "docker ps + docker inspect"}
+- {id: P-015, anssi: 4, name: "Inventaire des images Docker (SBOM)",               class: A, justif: "syft → CycloneDX"}
+- {id: P-016, anssi: 4, name: "Topologie réseau (VNet, subnets)",                  class: A, justif: "Azure SDK"}
+- {id: P-017, anssi: 4, name: "Plan d'adressage IP",                               class: A, justif: "Azure SDK"}
+- {id: P-018, anssi: 4, name: "Règles NSG (Network Security Groups)",              class: A, justif: "Watcher wc_nsg (déjà implémenté)"}
+- {id: P-019, anssi: 4, name: "Schéma d'architecture vectoriel (export)",          class: C, justif: "Diagramme dessiné manuellement"}
+- {id: P-020, anssi: 4, name: "Cartographie des flux (DFD niveau 2)",              class: B, justif: "NSG flow logs analysables + interprétation humaine"}
+- {id: P-021, anssi: 4, name: "Inventaire des catégories de données",              class: C, justif: "Taxonomie métier humaine"}
+- {id: P-022, anssi: 4, name: "Liste des biens supports (au sens EBIOS)",          class: B, justif: "Auto-collecte des composants techniques, validation humaine"}
+- {id: P-023, anssi: 4, name: "Cartographie des parties prenantes",                class: C, justif: "Identification organisationnelle"}
+
+# ─── Étape 5 : Analyse de risque (EBIOS RM) ──────────────────────────
+- {id: P-024, anssi: 5, name: "Liste des valeurs métier",                          class: C, justif: "Atelier humain"}
+- {id: P-025, anssi: 5, name: "Cartographie VM × BS (matrice de couverture)",      class: B, justif: "Calcul auto à partir de listes humaines"}
+- {id: P-026, anssi: 5, name: "Liste des événements redoutés (DICT)",              class: C, justif: "Atelier humain"}
+- {id: P-027, anssi: 5, name: "Cotation des gravités G1-G4",                       class: C, justif: "Jugement métier"}
+- {id: P-028, anssi: 5, name: "Caractérisation des sources de risque",             class: C, justif: "Atelier humain"}
+- {id: P-029, anssi: 5, name: "Matrice de pertinence SR × OV",                     class: C, justif: "Atelier humain"}
+- {id: P-030, anssi: 5, name: "Scénarios stratégiques (écosystème)",               class: C, justif: "Atelier humain"}
+- {id: P-031, anssi: 5, name: "Scénarios opérationnels (chaînes ATT&CK)",          class: B, justif: "Templating MITRE possible, instanciation humaine"}
+- {id: P-032, anssi: 5, name: "Cotation vraisemblance V1-V4",                      class: C, justif: "Jugement expert"}
+- {id: P-033, anssi: 5, name: "Cartographie heat-map des risques",                 class: A, justif: "Calcul G × V → visualisation auto"}
+
+# ─── Étape 6 : Mesures de sécurité ───────────────────────────────────
+- {id: P-034, anssi: 6, name: "PSSI rédigée et signée",                            class: C, justif: "Document organisationnel"}
+- {id: P-035, anssi: 6, name: "Charte informatique utilisateurs",                  class: C, justif: "Document organisationnel"}
+- {id: P-036, anssi: 6, name: "Charte d'administration",                           class: C, justif: "Document organisationnel"}
+- {id: P-037, anssi: 6, name: "Liste des mesures techniques retenues (MT)",        class: B, justif: "Auto-extraction de configs + structuration humaine"}
+- {id: P-038, anssi: 6, name: "Liste des mesures organisationnelles (MO)",         class: C, justif: "Catalogue humain"}
+- {id: P-039, anssi: 6, name: "Politique cryptographique (algorithmes)",           class: A, justif: "Auto-vérifiable (TLS scanner, code source)"}
+- {id: P-040, anssi: 6, name: "Configuration TLS des endpoints",                   class: A, justif: "openssl s_client / testssl.sh"}
+- {id: P-041, anssi: 6, name: "Inventaire des comptes AD",                         class: A, justif: "Get-ADUser"}
+- {id: P-042, anssi: 6, name: "Membres des groupes à privilèges",                  class: A, justif: "Get-ADGroupMember"}
+- {id: P-043, anssi: 6, name: "Comptes inactifs > 90 jours",                       class: A, justif: "LastLogonDate query"}
+- {id: P-044, anssi: 6, name: "Couverture MFA des administrateurs",                class: B, justif: "Selon source d'authn (auto si Azure AD, humain si TOTP local)"}
+- {id: P-045, anssi: 6, name: "Présence SPN Kerberoastables",                      class: A, justif: "Filtre LDAP automatisable"}
+- {id: P-046, anssi: 6, name: "Comptes DoesNotRequirePreAuth",                     class: A, justif: "Filtre LDAP automatisable"}
+- {id: P-047, anssi: 6, name: "Politique de verrouillage AD",                      class: A, justif: "Get-ADDefaultDomainPasswordPolicy"}
+- {id: P-048, anssi: 6, name: "Politiques GPO appliquées",                         class: A, justif: "Get-GPO + Get-GPOReport"}
+- {id: P-049, anssi: 6, name: "Configuration Sysmon",                              class: A, justif: "Sysmon -c"}
+- {id: P-050, anssi: 6, name: "PowerShell Script Block Logging activé",            class: A, justif: "Get-WinEvent registry check"}
+- {id: P-051, anssi: 6, name: "Audit policies Windows avancées",                   class: A, justif: "auditpol /get"}
+- {id: P-052, anssi: 6, name: "Inventaire des règles Wazuh",                       class: A, justif: "Wazuh API GET /rules"}
+- {id: P-053, anssi: 6, name: "Couverture MITRE ATT&CK des règles",                class: B, justif: "Mapping partiel auto, validation humaine"}
+- {id: P-054, anssi: 6, name: "Conteneurs en non-root (cap_drop, no-new-priv)",    class: A, justif: "docker inspect"}
+- {id: P-055, anssi: 6, name: "Conteneurs avec read_only filesystem",              class: A, justif: "docker inspect"}
+- {id: P-056, anssi: 6, name: "Détection du montage de /var/run/docker.sock",      class: A, justif: "docker inspect (critère CIS §5.31)"}
+- {id: P-057, anssi: 6, name: "Inventaire des secrets en clair (gitleaks)",        class: A, justif: "Scan automatisé"}
+- {id: P-058, anssi: 6, name: "Conformité CIS Docker Benchmark",                   class: A, justif: "docker-bench-security"}
+- {id: P-059, anssi: 6, name: "Programme de sensibilisation cyber",                class: C, justif: "Programme rédigé"}
+- {id: P-060, anssi: 6, name: "Plan de continuité d'activité (PCA)",               class: C, justif: "Document organisationnel"}
+- {id: P-061, anssi: 6, name: "Plan de reprise d'activité (PRA)",                  class: C, justif: "Document organisationnel"}
+- {id: P-062, anssi: 6, name: "Sauvegardes régulières (existence + fréquence)",    class: A, justif: "Azure Backup / cron jobs auditable"}
+- {id: P-063, anssi: 6, name: "Test de restauration des sauvegardes",              class: B, justif: "Auto-scriptable + validation humaine du contenu"}
+
+# ─── Étape 7 : Vérification de l'efficacité (audit) ──────────────────
+- {id: P-064, anssi: 7, name: "Inventaire des CVE résiduelles",                    class: A, justif: "Trivy / npm audit (déjà implémenté)"}
+- {id: P-065, anssi: 7, name: "Scans applicatifs SAST (Semgrep, ESLint)",          class: A, justif: "CI automatisée"}
+- {id: P-066, anssi: 7, name: "Scans applicatifs DAST (ZAP baseline)",             class: A, justif: "CI automatisée"}
+- {id: P-067, anssi: 7, name: "Rapport ASVS V2 — Authentication",                  class: B, justif: "Tests partiellement automatisables, vérification design humaine"}
+- {id: P-068, anssi: 7, name: "Rapport ASVS V3 — Sessions",                        class: B, justif: "Idem"}
+- {id: P-069, anssi: 7, name: "Rapport ASVS V4 — Access control",                  class: C, justif: "Vérification logique métier (IDOR, BOLA)"}
+- {id: P-070, anssi: 7, name: "Rapport ASVS V5 — Validation/encoding",             class: A, justif: "SAST + linters"}
+- {id: P-071, anssi: 7, name: "Rapport ASVS V7 — Errors/logging",                  class: A, justif: "Tests auto + grep code"}
+- {id: P-072, anssi: 7, name: "Rapport ASVS V11 — Business logic",                 class: C, justif: "Tests fonctionnels métier"}
+- {id: P-073, anssi: 7, name: "Rapport ASVS V12 — File upload",                    class: A, justif: "Tests unitaires + magic bytes"}
+- {id: P-074, anssi: 7, name: "Rapport ASVS V13 — API",                            class: A, justif: "OpenAPI + tests contractuels"}
+- {id: P-075, anssi: 7, name: "Rapport ASVS V14 — Configuration",                  class: A, justif: "IaC scan + tests config"}
+- {id: P-076, anssi: 7, name: "Pentest externe par prestataire",                   class: C, justif: "Humain qualifié PASSI"}
+- {id: P-077, anssi: 7, name: "Rapport d'audit organisationnel",                   class: C, justif: "Humain (vérification application des procédures)"}
+- {id: P-078, anssi: 7, name: "Test de rejeu des scénarios d'attaque",             class: A, justif: "Job CI nightly (intégré au pipeline HOMO-CI)"}
+- {id: P-079, anssi: 7, name: "Mesure MTTD (Mean Time To Detect)",                 class: A, justif: "Calcul auto sur journaux Wazuh"}
+- {id: P-080, anssi: 7, name: "Mesure MTTR (Mean Time To Respond)",                class: B, justif: "Auto + qualification humaine de la résolution"}
+- {id: P-081, anssi: 7, name: "Taux de faux positifs SIEM",                        class: B, justif: "Auto (volume) + qualification humaine"}
+
+# ─── Étape 8 : Décision d'homologation ───────────────────────────────
+- {id: P-082, anssi: 8, name: "Acte de décision signé par l'AQSSI",                class: C, justif: "Signature physique ou électronique humaine"}
+- {id: P-083, anssi: 8, name: "Registre des risques résiduels accepté",            class: B, justif: "Auto-généré depuis EBIOS, validation par signature"}
+- {id: P-084, anssi: 8, name: "Conditions de l'homologation (PACS prioritaire)",   class: C, justif: "Arbitrage humain"}
+- {id: P-085, anssi: 8, name: "PV de comité d'homologation",                       class: C, justif: "Procès-verbal humain"}
+
+# ─── Étape 9 : Suivi et maintien ─────────────────────────────────────
+- {id: P-086, anssi: 9, name: "Tableau de bord KRI mensuel",                       class: A, justif: "Auto-calculés (Wazuh, Azure Monitor)"}
+- {id: P-087, anssi: 9, name: "Note de revue intermédiaire (3 mois)",              class: B, justif: "Auto-génération à partir des KRI, commentaire humain"}
+- {id: P-088, anssi: 9, name: "Note de revue intermédiaire (6 mois)",              class: B, justif: "Idem"}
+- {id: P-089, anssi: 9, name: "Procédure de gestion des incidents",                class: C, justif: "Document organisationnel"}
+- {id: P-090, anssi: 9, name: "Procédure de gestion des accès",                    class: C, justif: "Document organisationnel"}
+- {id: P-091, anssi: 9, name: "Procédure de gestion des changements",              class: C, justif: "Document organisationnel"}
+- {id: P-092, anssi: 9, name: "Suivi de l'avancement du PACS",                     class: B, justif: "Statuts dans le registre + revue humaine"}
+- {id: P-093, anssi: 9, name: "Journal d'incidents qualifiés",                     class: A, justif: "Wazuh + ticketing"}
+- {id: P-094, anssi: 9, name: "Audit interne périodique",                          class: C, justif: "Humain"}
+- {id: P-095, anssi: 9, name: "Veille CVE (sources tierces)",                      class: A, justif: "Trivy + NVD + GitHub Advisory"}
+
+# ─── Conformité RGPD (transverse, étapes 4/6/9) ──────────────────────
+- {id: P-096, anssi: 6, name: "Registre des traitements (art. 30 RGPD)",           class: C, justif: "Tenu par le DPO"}
+- {id: P-097, anssi: 6, name: "AIPD pour MaCandidature (art. 35 RGPD)",            class: C, justif: "Analyse humaine"}
+- {id: P-098, anssi: 6, name: "Convention DPA Microsoft Azure",                    class: C, justif: "Contrat existant"}
+- {id: P-099, anssi: 9, name: "Procédure de notification CNIL (art. 33)",          class: C, justif: "Procédure humaine"}
+- {id: P-100, anssi: 9, name: "Journal des violations de données",                 class: A, justif: "Auto via Wazuh + DPO valide"}

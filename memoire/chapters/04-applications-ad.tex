@@ -1,0 +1,147 @@
+\chapter{Applications et Active Directory}
+\label{ch:apps-ad}
+
+Ce chapitre détaille ce qui tourne dans le lab côté applicatif et
+identités. C'est là qu'il y a de quoi auditer~: applications avec
+des vulnérabilités plantées exprès, AD avec des utilisateurs et
+des groupes représentatifs.
+
+\section{CorpNet : le portail interne}
+
+\texttt{CorpNet} est le premier service applicatif déployé sur
+\texttt{vm-web01}. C'est un portail web en \textbf{PHP} très
+classique~: page de login, mur d'actualités, agenda, chat
+flottant, espace personnel.
+
+Il n'est pas \emph{secure by design}. Il a été développé avec des
+vulnérabilités intentionnelles pour servir de cible aux scénarios
+d'attaque et donner à Wazuh des choses à détecter~:
+
+\begin{itemize}
+  \item \textbf{XSS} stockée dans le chat flottant~: un message
+    JavaScript posté est exécuté chez tous les destinataires.
+  \item \textbf{IDOR} sur le polling du chat~:
+    \texttt{?conversation\_id=N+1} renvoie les messages d'autres
+    utilisateurs.
+  \item \textbf{Injection SQL} sur certaines pages de recherche
+    (jointures non paramétrées).
+  \item \textbf{Mots de passe stockés en clair} dans la table
+    \texttt{users}.
+\end{itemize}
+
+\section{MaFormation et MaCandidature : applications métier}
+
+Pour aller au-delà d'un seul service, deux applications métier
+ont été ajoutées dans la stack \texttt{internal-apps}~:
+
+\begin{description}
+  \item[MaFormation.] Plateforme pédagogique~: cours, inscriptions,
+    notes. Codée en Node.js / Express, base PostgreSQL, ORM
+    Prisma. C'est l'application \emph{secure by design}~:
+    container non-root, filesystem en read-only, capacités
+    Linux droppées, communication avec la base sur un network
+    Docker \texttt{internal: true}.
+  \item[MaCandidature.] Plateforme de candidature aux formations~:
+    création de compte, dépôt de dossier, suivi. Même stack
+    technique que MaFormation, \textbf{mais une vulnérabilité
+    intentionnelle~:} le socket Docker \texttt{/var/run/docker.sock}
+    est monté dans le container, et le container tourne en root
+    avec le CLI \texttt{docker} installé.
+\end{description}
+
+Cette vulnérabilité côté MaCandidature est précisément le genre
+de chose qu'un dossier d'homologation est censé documenter et
+faire corriger. C'est le scénario \emph{«~ce que mon
+dossier devrait dire, mais ne dit plus si je ne le mets pas à
+jour~»}.
+
+\paragraph{Référence.} CIS Docker Benchmark 5.31~; MITRE
+ATT\&CK T1611 (\emph{Escape to Host}).
+
+\section{Architecture Docker sur vm-web01}
+
+\begin{figure}[h]
+\centering
+\begin{small}
+\begin{verbatim}
+vm-web01 (snet-dmz) -- Docker engine
+  +- stack "corpnet"           : portail PHP + MySQL
+  +- stack "internal-apps"
+      +- nginx (TLS, loopback)
+      |    +- :8443 -> maformation_app
+      |    +- :8444 -> macandidature_app
+      +- maformation_app  + maformation_db
+      +- macandidature_app (*) docker.sock monte
+          + macandidature_db
+\end{verbatim}
+\end{small}
+\caption{Stacks Docker sur le serveur web.}
+\label{fig:docker-web01}
+\end{figure}
+
+\paragraph{Trois networks Docker isolés.}
+\texttt{maformation\_proxy\_net}, \texttt{macandidature\_proxy\_net}
+pour le trafic nginx~$\leftrightarrow$~app, et deux networks
+\texttt{internal: true} pour les bases PostgreSQL (zéro accès
+Internet, même depuis Docker).
+
+\paragraph{nginx en frontal.}
+Il termine TLS, applique HSTS, CSP, X-Frame-Options, fait du
+rate-limit. Il n'écoute qu'en loopback (\texttt{127.0.0.1:8443}
+et \texttt{:8444}) sur vm-web01~; l'exposition vers l'extérieur
+passe par CorpNet en reverse-proxy.
+
+\paragraph{Secrets.}
+Les mots de passe (base, JWT, bind LDAP) sont dans des fichiers
+Docker secrets sous \texttt{secrets/}, jamais en variables
+d'environnement clair.
+
+\section{Active Directory : corpnet.local}
+
+Le contrôleur \texttt{vm-dc01} héberge le domaine
+\textbf{\texttt{corpnet.local}}, créé via AD~DS sur Windows Server
+2022. Le domaine est volontairement réaliste pour un ENT de
+moyenne taille~:
+
+\begin{itemize}
+  \item Une unité d'organisation (\emph{OU}) par direction~:
+    \texttt{OU=Direction}, \texttt{OU=DSI}, \texttt{OU=Pedagogie},
+    \texttt{OU=Scolarite}, etc.
+  \item Une vingtaine d'utilisateurs (\texttt{m.martin},
+    \texttt{p.bernard}, \texttt{j.dupont}, \texttt{s.david}\ldots)
+    avec un mot de passe par défaut \texttt{Welcome2025!} qui
+    sert à la fois aux tests applicatifs et aux scénarios
+    d'attaque (mot de passe faible).
+  \item Des groupes de sécurité (\texttt{G\_Etudiants},
+    \texttt{G\_Enseignants}, \texttt{G\_Admin}) utilisés pour
+    l'autorisation dans les applications.
+  \item Un compte de service \texttt{svc\_ldap} pour le bind LDAP
+    depuis MaFormation et MaCandidature.
+\end{itemize}
+
+\paragraph{Pourquoi un AD réaliste.}
+Sans utilisateurs, sans groupes, sans changements, un dossier
+d'homologation côté identités n'a rien à dire. L'AD du lab fournit
+de la matière~: des comptes inactifs à détecter, des comptes
+privilégiés à inventorier, des mots de passe faibles à signaler.
+
+\section{Authentification dans les applications}
+
+Les trois applications (CorpNet, MaFormation, MaCandidature)
+authentifient les utilisateurs contre \texttt{corpnet.local} via
+LDAP, en utilisant le compte de bind \texttt{svc\_ldap}.
+
+À la première connexion, l'utilisateur est créé localement dans
+la base de l'application, avec un rôle déduit du
+\texttt{memberOf} LDAP. Cette logique permet de tracer
+côté application les attributions de rôles, ce qui est exigé par
+l'homologation (qui a accès à quoi, et pourquoi).
+
+\begin{warning}
+Toutes les vulnérabilités décrites dans ce chapitre (XSS, IDOR,
+SQLi, mot de passe par défaut faible, socket Docker exposé) sont
+\textbf{intentionnelles} et confinées au lab. Elles ne doivent
+pas être présentes dans un SI en production~; elles sont là
+pour que le dossier d'homologation ait quelque chose à dire et
+que Wazuh ait quelque chose à détecter.
+\end{warning}

@@ -1,0 +1,9 @@
+Options -Indexes
+RewriteEngine On
+
+# Ne pas réécrire les fichiers/répertoires existants (.php, .css, .js, uploads...)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Tout le reste passe par le Front Controller
+RewriteRule ^ index.php [L,QSA]

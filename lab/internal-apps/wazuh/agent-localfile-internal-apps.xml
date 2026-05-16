@@ -1,0 +1,39 @@
+<!--
+  Fragment to append to /var/ossec/etc/ossec.conf on vm-web01.
+  See scripts/setup-wazuh-internal.sh for the script that installs it.
+-->
+<ossec_config>
+  <!-- MaFormation app JSON logs -->
+  <localfile>
+    <log_format>json</log_format>
+    <location>/var/log/corpnet/internal/maformation/maformation.log</location>
+    <label key="@source.app">maformation</label>
+  </localfile>
+
+  <!-- MaCandidature app JSON logs -->
+  <localfile>
+    <log_format>json</log_format>
+    <location>/var/log/corpnet/internal/macandidature/macandidature.log</location>
+    <label key="@source.app">macandidature</label>
+  </localfile>
+
+  <!-- Internal nginx access (already JSON via log_format json_combined) -->
+  <localfile>
+    <log_format>json</log_format>
+    <location>/var/log/corpnet/internal/nginx/access.log</location>
+    <label key="@source.app">internal-nginx</label>
+  </localfile>
+
+  <!-- Internal nginx errors (text) -->
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/var/log/corpnet/internal/nginx/error.log</location>
+  </localfile>
+
+  <!-- MaCandidature outbox (verification emails) — informational only -->
+  <localfile>
+    <log_format>json</log_format>
+    <location>/var/log/corpnet/internal/macandidature/outbox.log</location>
+    <label key="@source.app">macandidature-outbox</label>
+  </localfile>
+</ossec_config>

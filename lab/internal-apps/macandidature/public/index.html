@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MaCandidature — UrbanUpC</title>
+  <link rel="stylesheet" href="styles.css">
+  <base href="./">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="logo">📝</span>
+      <strong>MaCandidature</strong>
+      <small>Espace candidat — Master UrbanUpC</small>
+    </div>
+    <div id="user-info" hidden>
+      <span id="user-name"></span>
+      <button id="logout-btn" type="button">Déconnexion</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="auth-view">
+      <div class="auth-switch">
+        <button id="show-login" class="active">Connexion</button>
+        <button id="show-signup">Créer un compte</button>
+      </div>
+
+      <form id="login-form" class="auth-form" autocomplete="off">
+        <h2>Se connecter</h2>
+        <label>Email <input id="login-email" type="email" required maxlength="254" autocomplete="username"></label>
+        <label>Mot de passe <input id="login-pw" type="password" required maxlength="128" autocomplete="current-password"></label>
+        <button type="submit">Se connecter</button>
+        <p id="login-err" class="error" hidden></p>
+      </form>
+
+      <form id="signup-form" class="auth-form" autocomplete="off" hidden>
+        <h2>Créer un compte candidat</h2>
+        <label>Email <input id="signup-email" type="email" required maxlength="254" autocomplete="email"></label>
+        <label>Mot de passe (12 caractères min.) <input id="signup-pw" type="password" required minlength="12" maxlength="128" autocomplete="new-password"></label>
+        <label>Prénom <input id="signup-first" required maxlength="60"></label>
+        <label>Nom <input id="signup-last" required maxlength="60"></label>
+        <button type="submit">Créer le compte</button>
+        <p class="hint">Un email de vérification sera simulé (consultez le fichier outbox.log côté serveur).</p>
+        <p id="signup-err" class="error" hidden></p>
+        <p id="signup-ok" class="success" hidden></p>
+      </form>
+    </section>
+
+    <section id="app-view" hidden>
+      <div id="verify-banner" class="warn" hidden>
+        Votre email n'est pas vérifié. Renseignez le token reçu :
+        <input id="verify-token" placeholder="token" maxlength="64">
+        <button id="verify-btn" type="button">Vérifier</button>
+      </div>
+
+      <nav class="tabs">
+        <button data-tab="profile" class="active">Profil</button>
+        <button data-tab="applications">Mes candidatures</button>
+        <button data-tab="documents">Mes documents</button>
+      </nav>
+
+      <div id="tab-profile"      class="tab active"></div>
+      <div id="tab-applications" class="tab"></div>
+      <div id="tab-documents"    class="tab"></div>
+    </section>
+  </main>
+
+  <footer>
+    <small>UrbanUpC · Master Cybersécurité · MaCandidature</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

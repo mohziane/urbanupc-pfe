@@ -1,0 +1,54 @@
+# =============================================================
+#  CorpNet — Configuration MySQL
+#  Toutes les sections forcent utf8mb4 pour éliminer le mojibake
+# =============================================================
+
+# --- Client CLI (mysql, mysqladmin, mysqldump) ---
+[client]
+default-character-set = utf8mb4
+
+# --- Shell interactif mysql ---
+[mysql]
+default-character-set = utf8mb4
+
+# --- Serveur mysqld ---
+[mysqld]
+
+# ---- Charset : triple verrou anti-mojibake ----
+# 1. Charset par défaut pour les nouvelles bases/tables
+character-set-server    = utf8mb4
+collation-server        = utf8mb4_unicode_ci
+
+# 2. Force le charset serveur sur toutes les connexions clientes,
+#    même si le client demande latin1 (jdbc, anciens pilotes, etc.)
+skip-character-set-client-handshake
+
+# 3. Commande exécutée pour chaque nouvelle connexion authentifiée
+#    (double filet après skip-character-set-client-handshake)
+init_connect            = 'SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci'
+
+# ---- Logging pour détection SIEM ----
+slow_query_log          = 1
+slow_query_log_file     = /var/log/mysql/slow.log
+long_query_time         = 3
+log_queries_not_using_indexes = 1
+
+general_log             = 1
+general_log_file        = /var/log/mysql/general.log
+
+log_error               = /var/log/mysql/error.log
+
+# Binlog (utile pour forensics post-exploitation)
+log_bin                 = /var/log/mysql/mysql-bin
+binlog_format           = MIXED
+expire_logs_days        = 7
+
+# ---- Performance ----
+innodb_buffer_pool_size = 256M
+max_connections         = 150
+
+# ---- Bind (0.0.0.0 pour Docker/Adminer) ----
+bind-address            = 0.0.0.0
+
+# ---- SQL mode moins strict (favorise les injections) ----
+sql_mode                = ''

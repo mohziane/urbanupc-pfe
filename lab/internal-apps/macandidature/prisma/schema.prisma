@@ -1,0 +1,101 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Local-auth candidate accounts (no AD yet — they're not students).
+// Once their application is accepted, an admin process provisions a student
+// account in corpnet.local and they switch to MaFormation.
+model Candidate {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String                              // argon2id
+  emailVerified   Boolean   @default(false)
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime?
+  nationality     String?
+  phone           String?
+  role            Role      @default(CANDIDATE)
+  failedLogins    Int       @default(0)
+  lockedUntil     DateTime?
+  createdAt       DateTime  @default(now())
+  lastLoginAt     DateTime?
+
+  applications    Application[]
+  documents       CandidateDocument[]
+  verifications   EmailVerification[]
+}
+
+enum Role {
+  CANDIDATE
+  ADMIN
+}
+
+model EmailVerification {
+  id          String   @id @default(uuid())
+  candidateId String
+  tokenHash   String   // never store the raw token
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  @@index([candidateId])
+}
+
+model Application {
+  id              String     @id @default(uuid())
+  candidateId     String
+  programCode     String                                  // e.g. "M1-CYBER"
+  motivation      String     // free text (escaped on render)
+  prevDegree      String
+  prevInstitution String
+  status          AppStatus  @default(DRAFT)
+  submittedAt     DateTime?
+  decisionAt      DateTime?
+  decisionNote    String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  candidate       Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+  @@index([status])
+}
+
+enum AppStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+model CandidateDocument {
+  id          String   @id @default(uuid())
+  ownerId     String
+  category    DocCategory
+  filename    String
+  storageKey  String   @unique
+  mimeType    String
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  owner       Candidate @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+}
+
+enum DocCategory {
+  CV
+  LETTER
+  TRANSCRIPT
+  ID_PROOF
+  OTHER
+}

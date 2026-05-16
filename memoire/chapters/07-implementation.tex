@@ -1,0 +1,277 @@
+\chapter{Implémentation}
+\label{ch:implementation}
+
+Ce chapitre détaille le code de HOMO-CI~: stack technique, structure
+du dépôt, fonctionnement des principales couches.
+
+\section{Stack technique}
+
+\begin{table}[h]
+\centering
+\caption{Composants techniques de HOMO-CI.}
+\label{tab:stack}
+\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Composant} & \textbf{Choix} \\
+\midrule
+Langage principal & Python 3.11+ \\
+Validation des données & Pydantic v2 (modèles immutables) \\
+CLI & Click + Rich (affichage couleur) \\
+Stockage local & SQLite (\texttt{sqlite3} stdlib) + JSON Lines \\
+SDK Azure & \texttt{azure-identity}, \texttt{azure-mgmt-network}, \texttt{azure-mgmt-resource} \\
+Scan CVE & Trivy (binaire externe, appel \texttt{subprocess}) \\
+Templating & Jinja2 \\
+Conversion PDF & Pandoc + WeasyPrint (CSS) \\
+Stockage distant & Azure Blob Storage (publication) \\
+Orchestration locale & Makefile + Bash \\
+CI/CD & GitHub Actions (workflows quotidiens) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Structure du dépôt}
+
+\begin{lstlisting}[caption={Arborescence du paquet
+\texttt{homo\_ci}.}]
+pipeline/
++-- homo_ci/                  Package Python
+|   +-- models.py             Evidence, Change, DossierSnapshot
+|   +-- storage.py            SQLite store + JSONL trail
+|   +-- watchers/             Collecteurs
+|   |   +-- base.py           Interface BaseWatcher
+|   |   +-- wc_nsg.py         Azure NSG
+|   |   +-- wc_cve.py         Trivy / CVE Docker
+|   |   +-- wc_ad.py          Active Directory
+|   |   +-- wc_siem.py        Wazuh
+|   +-- diff.py               Moteur de diff
+|   +-- render.py             Renderer Jinja2 -> Markdown
+|   +-- sign.py               Hash chain + signature
+|   +-- cli.py                Point d'entree Click
+|   +-- tests/                Tests unitaires
++-- templates/                dossier.md.j2
++-- styles/                   CSS pour WeasyPrint
++-- scripts/                  Scripts d'orchestration
++-- Makefile                  Cibles : run, test, clean
++-- pyproject.toml
++-- requirements.txt
+\end{lstlisting}
+
+\section{Les watchers}
+
+Tous les watchers héritent de \texttt{BaseWatcher} qui définit un
+contrat simple~:
+
+\begin{lstlisting}[language=Python,caption={Interface
+\texttt{BaseWatcher}.}]
+class BaseWatcher(ABC):
+    source: SourceType  # défini par la classe fille
+
+    def __init__(self, store: EvidenceStore) -> None:
+        self.store = store
+        self.log = logging.getLogger(self.__class__.__name__)
+
+    @abstractmethod
+    def collect(self) -> list[Evidence]: ...
+
+    def run(self) -> WatcherResult:
+        """Collecte, persiste, retourne un résumé."""
+        ...
+\end{lstlisting}
+
+Deux watchers sont implémentés en v0.1 (\texttt{wc\_nsg} et
+\texttt{wc\_cve}), les autres (\texttt{wc\_ad}, \texttt{wc\_siem})
+sont câblés mais en stub.
+
+\subsection{Watcher NSG : exemple complet}
+
+\texttt{wc\_nsg.py} interroge Azure Resource Manager via le SDK
+officiel et produit une \texttt{Evidence} par règle NSG~:
+
+\begin{lstlisting}[language=Python,caption={Cœur du watcher NSG.}]
+def collect(self) -> list[Evidence]:
+    cred = DefaultAzureCredential(
+        exclude_interactive_browser_credential=True
+    )
+    client = NetworkManagementClient(cred, self.subscription_id)
+    evidences: list[Evidence] = []
+    for nsg in client.network_security_groups.list(
+        self.resource_group
+    ):
+        for rule in nsg.security_rules or []:
+            payload = self._serialize_rule(nsg.name, rule)
+            ref = f"{nsg.name}/{rule.name}"
+            materiality = self._classify_materiality(rule)
+            evidences.append(
+                Evidence.from_payload(
+                    source=self.source,
+                    category=Category.NSG,
+                    ref=ref,
+                    payload=payload,
+                    scope=self.SCOPE,
+                    weight=Weight.AUTO,
+                    materiality=materiality,
+                )
+            )
+    return evidences
+\end{lstlisting}
+
+Deux points à noter~:
+
+\begin{itemize}
+  \item L'\texttt{Evidence} est construite via
+    \texttt{Evidence.from\_payload(...)} qui calcule
+    automatiquement le hash SHA-256 sur le payload JSON
+    canonique (clés triées, séparateurs compacts). C'est ce hash
+    qui permet la déduplication et la détection de changement.
+  \item La matérialité est classifiée en HIGH si la règle est
+    \texttt{Allow} et autorise du trafic depuis Internet. C'est
+    une heuristique simple mais déjà utile pour prioriser les
+    alertes.
+\end{itemize}
+
+\subsection{Watcher CVE}
+
+\texttt{wc\_cve.py} appelle Trivy en sous-processus~:
+
+\begin{lstlisting}[language=bash]
+trivy image --quiet --format json \
+    --severity CRITICAL,HIGH,MEDIUM,LOW \
+    internal-apps/maformation:latest
+\end{lstlisting}
+
+Le JSON de sortie est parsé, et chaque CVE devient une preuve avec
+sa sévérité mappée vers \texttt{Materiality}~:
+
+\begin{lstlisting}[language=Python]
+_SEV_MAP = {
+    "CRITICAL": Materiality.HIGH,
+    "HIGH":     Materiality.HIGH,
+    "MEDIUM":   Materiality.MEDIUM,
+    "LOW":      Materiality.LOW,
+}
+\end{lstlisting}
+
+Si Trivy n'est pas disponible (\texttt{shutil.which} échoue), le
+watcher émet un warning et retourne une liste vide --- pas
+d'exception, le pipeline continue.
+
+\section{Le stockage}
+
+Deux supports complémentaires~:
+
+\begin{description}
+  \item[SQLite.] Une seule table \texttt{evidence} avec les
+    colonnes (\texttt{id, ts, source, category, ref,
+    payload\_hash, payload\_json, materiality, weight}). Indexée
+    sur \texttt{(source, ref)}. Permet les requêtes rapides du
+    diff et du rendu.
+  \item[JSONL.] À chaque collecte, un fichier
+    \texttt{snapshot-AAAAMMJJ-HHMMSS.jsonl} est écrit avec une
+    preuve par ligne. C'est le format d'archive long terme et
+    de comparaison entre exécutions.
+\end{description}
+
+\section{Le moteur de diff}
+
+Algorithme en $O(N+M)$~: on construit deux dictionnaires indexés
+par \texttt{(source, ref)} pour le snapshot précédent et le
+courant, puis on compare~:
+
+\begin{lstlisting}[language=Python,caption={Logique de diff.}]
+def diff(previous: dict, current: dict) -> list[Change]:
+    changes = []
+    prev_keys = set(previous.keys())
+    curr_keys = set(current.keys())
+    for key in curr_keys - prev_keys:
+        changes.append(Change(type=ChangeType.CREATED, ...))
+    for key in prev_keys - curr_keys:
+        changes.append(Change(type=ChangeType.DELETED, ...))
+    for key in prev_keys & curr_keys:
+        if previous[key].payload_hash != current[key].payload_hash:
+            changes.append(Change(type=ChangeType.UPDATED, ...))
+    return changes
+\end{lstlisting}
+
+Comparaison par hash plutôt que par contenu~: rapide, et
+correcte tant que la canonicalisation JSON reste stable.
+
+\section{Le rendu du dossier}
+
+Un seul template Jinja2 (\texttt{templates/dossier.md.j2}), qui
+itère sur les preuves groupées par section ANSSI~:
+
+\begin{lstlisting}[language={[LaTeX]TeX},caption={Extrait du
+template.}]
+# Dossier d'homologation -- {{ snapshot.version }}
+
+Généré le {{ snapshot.generated_at }}
+Hash : {{ snapshot.pdf_hash }}
+
+## Étape 4 -- Cartographie du SI
+
+### Règles réseau (NSG)
+{% for ev in evidences | selectattr("category.value", "==", "nsg") %}
+- {{ ev.ref }} : {{ ev.payload.action }} ...
+{% endfor %}
+\end{lstlisting}
+
+Le Markdown produit est ensuite converti en PDF par pandoc, avec
+une feuille de style CSS pour la mise en page (logo, marges,
+police).
+
+\section{La signature et la \emph{hash chain}}
+
+Le hash SHA-256 du PDF généré est calculé après écriture. Chaque
+\texttt{DossierSnapshot} référence par \texttt{parent\_hash} le
+hash du dossier précédent~: c'est ce qui constitue la \emph{hash
+chain}, et qui permet de détecter une falsification rétroactive
+d'un dossier antérieur.
+
+\section{Le CLI}
+
+Quatre commandes~:
+
+\begin{lstlisting}[language=bash]
+# Collecter les preuves (par défaut nsg + cve)
+homo-ci collect --include nsg --include cve
+
+# Comparer avec le snapshot précédent
+homo-ci diff
+
+# Générer le dossier (Markdown + PDF)
+homo-ci render
+
+# Publier sur Azure Blob (optionnel)
+homo-ci publish
+\end{lstlisting}
+
+L'enchaînement complet est encapsulé dans une cible Makefile~:
+
+\begin{lstlisting}[language=bash]
+make pipeline-run
+# Résultat : build/dossier-AAAAMMJJ-HHMMSS.pdf
+\end{lstlisting}
+
+\section{Tests}
+
+Tests unitaires \texttt{pytest} dans \texttt{homo\_ci/tests/}, qui
+couvrent~:
+
+\begin{itemize}
+  \item La canonicalisation et le hash des payloads (déterminisme).
+  \item Le diff entre deux ensembles connus.
+  \item La sérialisation / désérialisation JSONL.
+  \item Le rendu Jinja2 d'un mini-dossier de référence.
+\end{itemize}
+
+Le watcher NSG est testé avec un \emph{mock} du SDK Azure (pas de
+vrai appel pendant les tests). Le watcher CVE est testé avec un
+JSON Trivy figé.
+
+\begin{takeaway}
+HOMO-CI est un pipeline Python de taille modeste (environ
+\textasciitilde 2~000 lignes hors tests). Le choix des briques
+(Pydantic, SQLite, Jinja2, Trivy, SDK Azure officiel) privilégie
+la stabilité et la lisibilité à toute prouesse technique.
+\end{takeaway}

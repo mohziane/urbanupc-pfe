@@ -1,0 +1,14 @@
+---
+title: "Analyse de risque EBIOS Risk Manager — UrbanUpC"
+subtitle: "Espace Numérique de Travail universitaire — Périmètre SI UrbanUpC SOC"
+document_type: "Rapport d'analyse de risque"
+document_id: "EBIOS-RM-URBANUPC-2026-V1.0"
+classification: "Diffusion restreinte — Comité d'homologation UrbanUpC"
+version: "1.0"
+status: "Pour homologation"
+date: "Mai 2026"
+analyst: "Risk Manager — Direction Cybersécurité"
+sponsor: "Autorité Qualifiée pour la Sécurité des Systèmes d'Information (AQSSI) UrbanUpC"
+methodology: "EBIOS Risk Manager — Guide ANSSI v1.0 (octobre 2018)"
+review_cycle: "Annuel — révision intermédiaire à chaque évolution majeure du périmètre"
+---

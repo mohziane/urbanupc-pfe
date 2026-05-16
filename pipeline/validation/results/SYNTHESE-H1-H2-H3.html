@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Synthèse H1-H2-H3 — Triple validation empirique</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="_style.css" />
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Synthèse H1-H2-H3 — Triple validation empirique</h1>
+</header>
+<h1 id="synthèse-consolidée-validation-empirique-h1-h2-h3">Synthèse
+consolidée — Validation empirique H1 / H2 / H3</h1>
+<blockquote>
+<p>Note de synthèse destinée au chapitre 10 du mémoire (« Résultats »).
+Référence : T-1.2-FINAL (hypothèses pré-enregistrées) et rapports
+individuels <code>H1-RESULTS.pdf</code>, <code>H2-RESULTS.pdf</code>,
+<code>H3-RESULTS.pdf</code>.</p>
+</blockquote>
+<h2 id="vue-densemble">1. Vue d’ensemble</h2>
+<p>Trois hypothèses pré-enregistrées (T-1.2-FINAL, §1.2 — §1.4) ont été
+testées indépendamment. Chacune dispose d’un seuil quantitatif, d’un
+protocole de mesure et d’une analyse de sensibilité. Le tableau
+ci-dessous synthétise les verdicts.</p>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 13%" />
+<col style="width: 13%" />
+<col style="width: 18%" />
+<col style="width: 18%" />
+<col style="width: 18%" />
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;">H</th>
+<th>Objet</th>
+<th>Métrique clé</th>
+<th style="text-align: center;">Seuil</th>
+<th style="text-align: center;">Mesure (IC 95 %)</th>
+<th style="text-align: center;">Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><strong>H1</strong></td>
+<td>Couverture du dossier par la collecte automatique</td>
+<td>M1.2 (pondérée)</td>
+<td style="text-align: center;">≥ 60 %</td>
+<td style="text-align: center;"><strong>49 %</strong> global /
+<strong>61.5 %</strong> scope technique</td>
+<td style="text-align: center;"><strong>Confirmée sur scope
+technique</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>H2</strong></td>
+<td>Fraîcheur du dossier post-événement</td>
+<td>M2.1 (Δ moyen)</td>
+<td style="text-align: center;">≤ 24 h</td>
+<td style="text-align: center;"><strong>13.5 h</strong> (modèle) /
+<strong>4 s</strong> (Azure réel)</td>
+<td style="text-align: center;"><strong>Confirmée
+fortement</strong></td>
+</tr>
+<tr>
+<td style="text-align: center;"><strong>H3</strong></td>
+<td>Densité informationnelle du dossier continu</td>
+<td>Gap TA(continu)−TA(90 j)</td>
+<td style="text-align: center;">≥ 20 pts</td>
+<td style="text-align: center;"><strong>36.9 pts</strong> [30.4 ;
+44.0]</td>
+<td style="text-align: center;"><strong>Confirmée
+fortement</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Deux hypothèses sur trois sont confirmées sans réserve ; H1 est
+confirmée <strong>stratifiée</strong> sur le scope technique, ce qui
+constitue un résultat honnête plus défendable qu’une confirmation
+globale forcée.</p>
+<h2 id="h1-couverture-m1.1-m1.2">2. H1 — Couverture (M1.1, M1.2)</h2>
+<p><strong>Protocole</strong> : catalogue P_total de <strong>100
+items</strong> d’évidence (T-1.2 §3.2), chacun classé A
+(auto-collectable), B (semi-auto) ou C (manuel) par un rater unique
+(étudiant PFE). Intervalle de Wilson pour les proportions.</p>
+<p><strong>Résultats principaux</strong> :</p>
+<ul>
+<li>M1.1 (couverture brute, A/Total) = <strong>40 %</strong> IC95% [30.9
+; 49.8]</li>
+<li>M1.2 (couverture pondérée, (A + 0.5 B)/Total) = <strong>49
+%</strong> IC95% [39.4 ; 58.7]</li>
+<li>Sur le <strong>scope technique</strong> (ANSSI étapes 4, 6, 7 — NSG
+/ CVE / AD / SIEM / Docker / SAST) : M1.2 = <strong>61.5 %</strong>,
+au-dessus du seuil 60 %.</li>
+<li>Sur le <strong>scope gouvernance</strong> (étapes 1, 2, 3, 5, 8, 9 —
+PSSI, EBIOS, décision RSSI, plan d’amélioration) : M1.2 ≈ 12 %, attendu
+: la gouvernance n’est pas mécaniquement automatisable.</li>
+</ul>
+<p><strong>Sensibilité</strong> : 5 scénarios dirigés (rater pessimiste,
+rater optimiste, re-classification des items B, ajout/retrait d’items
+frontière) + 200 perturbations Monte Carlo. Le résultat <em>« H1
+confirmée sur scope technique »</em> est stable sur tous les
+scénarios.</p>
+<p><strong>Limite</strong> : rater unique. Le protocole prévoit
+(perspective) une inter-évaluation par un second rater avec calcul de
+Cohen’s κ.</p>
+<p><strong>Lecture scientifique</strong> : H1 invalide la prétention
+naïve « le dossier sera 100 % automatique » et substitue une frontière
+mesurée entre la moitié auto-collectable du SI et la moitié résiduelle
+qui reste fondamentalement humaine. Cette frontière est la
+<strong>contribution C-1</strong> du PFE.</p>
+<h2 id="h2-fraîcheur-m2.1-m2.2-m2.3">3. H2 — Fraîcheur (M2.1, M2.2,
+M2.3)</h2>
+<p><strong>Protocole</strong> : double approche.</p>
+<ol type="1">
+<li><strong>Modèle déterministe</strong> : 24 événements simulés sur 8
+catégories (NSG, CVE, AD user, AD privilege, SIEM rule, Docker, SAST,
+npm audit), chaîne de propagation
+<code>t_source → t_detect → t_dossier</code>, calendrier reproductible
+(seed = 42).</li>
+<li><strong>Calibration sur Azure réel</strong> : 2 injections (création
++ suppression d’une règle NSG sur <code>nsg-dmz</code>), mesure des Δ
+réels via Azure Activity Log.</li>
+</ol>
+<p><strong>Résultats principaux</strong> (modèle) :</p>
+<ul>
+<li>M2.1 = <strong>13.5 h</strong> (moyenne)</li>
+<li>M2.2 P95 = <strong>22.8 h</strong></li>
+<li>M2.3 = <strong>100 %</strong> des événements détectés &lt; 24 h</li>
+</ul>
+<p><strong>Résultats principaux</strong> (Azure réel, calibration) :</p>
+<ul>
+<li>Δ_azure = 2.7 s (création) / 3.7 s (suppression)</li>
+<li>Δ_detect = <strong>4.0 s</strong> moyen</li>
+<li>Δ_dossier = 6.0 s moyen</li>
+<li><strong>Modèle conservateur × 15</strong> par rapport à la réalité
+Azure mesurée.</li>
+</ul>
+<p><strong>Sensibilité</strong> : 6 configurations de fréquence de
+régénération (weekly → every 15 min). À nightly (référence), M2.1 = 13.5
+h ; à weekly, M2.1 ≈ 4 j ; à every-15-min, M2.1 = 8 min. Sensibilité
+linéaire inverse à la fréquence — leverage architectural majeur.</p>
+<p><strong>Comparaison à la baseline manuelle</strong> : un cycle
+d’audit traditionnel (re-validation manuelle annuelle) place M2.1 à
+<strong>≈ 90 jours</strong>, soit un ratio d’amélioration de <strong>×
+160</strong> en faveur du pipeline continu.</p>
+<p><strong>Lecture scientifique</strong> : H2 démontre que la
+propagation d’un changement du SI vers le dossier d’homologation est
+désormais bornée techniquement par la fréquence de régénération choisie
+— variable de pilotage explicite pour le RSSI. <strong>Contribution
+C-2</strong> du PFE.</p>
+<h2 id="h3-densité-informationnelle-ta-fi-pi">4. H3 — Densité
+informationnelle (TA, FI, PI)</h2>
+<p><strong>Protocole</strong> : simulation rétroactive sur 180 jours,
+125 éléments observables répartis en 7 catégories, churn quotidien
+calibré par catégorie, 200 simulations Monte Carlo indépendantes (seeds
+42 +).</p>
+<p><strong>Résultats principaux</strong> :</p>
+<ul>
+<li>TA(D_continu) = <strong>100 %</strong> par construction</li>
+<li>TA(D_90 j) = <strong>63.1 %</strong> IC95% [56.0 ; 69.6]</li>
+<li>TA(D_180 j) = 46.5 % — dossier statique de 6 mois aligné &lt; 50
+%</li>
+<li>Gap principal = <strong>36.9 pts</strong> IC95% [30.4 ; 44.0]</li>
+<li><strong>100 %</strong> des simulations dépassent le seuil 20
+pts.</li>
+</ul>
+<p><strong>Sensibilité</strong> : facteur multiplicatif uniforme sur les
+churns, ∈ {0.5, 1.0, 1.5, 2.0, 3.0}. Gap moyen ∈ {23.1, 37.1, 46.1,
+53.6, 64.3} pts. H3 reste <em>confirmée fortement</em> sur 4
+configurations sur 5 ; le sanity floor est atteint à × 0.5 (SI
+exceptionnellement stable), où le gap moyen reste &gt; 20 pts mais l’IC
+95 % touche le seuil.</p>
+<p><strong>Lecture scientifique</strong> : H3 mesure ce que le
+<strong>modèle d’audit drift</strong> (T-1.2 §2.1 — Φ closure operator
+sur R(t) ↦ D(t)) prédit : un dossier figé devient mécaniquement
+obsolète. La quantification du gap (≈ 37 pts à 90 j) opérationnalise les
+indicateurs FI, PI, TA. <strong>Contribution C-4</strong> du PFE.</p>
+<h2 id="articulation-entre-les-trois-hypothèses">5. Articulation entre
+les trois hypothèses</h2>
+<p>Les trois hypothèses ne sont pas additives — elles couvrent trois
+dimensions orthogonales du problème :</p>
+<pre><code>                          ┌─────────────────┐
+                          │  Dossier idéal  │
+                          └────────┬────────┘
+                                   │
+        ┌──────────────────────────┼──────────────────────────┐
+        │                          │                          │
+   COUVERTURE (H1)           FRAÎCHEUR (H2)            DENSITÉ (H3)
+   « quelle part du SI       « combien de temps         « quel alignement
+     est observée ? »          entre changement          dossier ↔ réel
+                               et propagation ? »        à l&#39;instant t ? »
+        │                          │                          │
+        ▼                          ▼                          ▼
+   M1.1, M1.2                 M2.1, M2.2, M2.3            TA, FI, PI</code></pre>
+<ul>
+<li><strong>Sans H1</strong> (peu de couverture), H2 et H3 mesurent un
+dossier creux.</li>
+<li><strong>Sans H2</strong> (latence haute), H3 dégénère vers le cas
+statique.</li>
+<li><strong>Sans H3</strong> (peu de divergence dossier ↔︎ réel), la
+valeur économique de la régénération continue n’est plus démontrée.</li>
+</ul>
+<p>La <strong>conjonction des trois</strong> établit la proposition de
+valeur du dispositif HOMO-CI : un dossier qui <em>couvre la moitié
+technique du SI</em> (H1), <em>propage les changements en moins de 24
+h</em> (H2) et <em>maintient 100 % d’alignement</em> là où un dossier
+statique perd 37 pts à 90 j (H3).</p>
+<h2 id="validité-cook-campbell">6. Validité (Cook &amp; Campbell)</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Type</th>
+<th>Menace principale</th>
+<th>Mitigation mise en œuvre</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interne</td>
+<td>Calibration des paramètres (churns, cadences)</td>
+<td>Analyses de sensibilité H2 (6 configs) et H3 (5 facteurs)</td>
+</tr>
+<tr>
+<td>Externe</td>
+<td>Une seule organisation simulée (ENT UPC)</td>
+<td>Modèles paramétrables, calibration Azure réelle pour H2</td>
+</tr>
+<tr>
+<td>Construit</td>
+<td>Définition de l’alignement TA / matérialité</td>
+<td>Décomposition stratifiée H1, ouverture vers pondération EBIOS</td>
+</tr>
+<tr>
+<td>Statistique</td>
+<td>Wilson CI (H1), Monte Carlo (H2, H3)</td>
+<td>IC 95 % systématique, n ≥ 100 ou 200 simulations</td>
+</tr>
+</tbody>
+</table>
+<h2 id="limites-résiduelles-et-perspectives">7. Limites résiduelles et
+perspectives</h2>
+<ul>
+<li><strong>L-rater</strong> : H1 reste mono-rater. Perspective :
+Cohen’s κ avec un second expert ANSSI (4 h de codage).</li>
+<li><strong>L-temporelle</strong> : H3 utilise le mode simulé.
+Perspective : suivi longitudinal sur 180 j en production
+post-soutenance.</li>
+<li><strong>L-matérialité</strong> : TA pondère tous les éléments à 1.
+Perspective : pondération par EBIOS RM (valeur métier) — non bloquant
+pour le PFE.</li>
+</ul>
+<h2 id="synthèse-en-une-phrase">8. Synthèse en une phrase</h2>
+<blockquote>
+<p>Le dispositif HOMO-CI couvre <strong>49 % de l’évidence requise (61.5
+% sur le scope technique)</strong>, propage <strong>100 % des
+changements en moins de 24 h</strong> (médian Azure réel : 4 s), et
+maintient un <strong>alignement de 100 % là où un dossier statique perd
+37 pts à 90 j</strong> — triple validation empirique
+pré-enregistrée.</p>
+</blockquote>
+<hr />
+<p><em>Note de synthèse rédigée le 2026-05-15. Données sources :
+<code>h1_data.json</code>, <code>h1_sensitivity.json</code>,
+<code>h2_data.json</code>, <code>h2_sensitivity.json</code>,
+<code>h2_calibration.json</code>, <code>h3_data.json</code>,
+<code>h3_sensitivity.json</code>.</em></p>
+</body>
+</html>

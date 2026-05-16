@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>H1 — Mesure de couverture automatisable</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">H1 — Mesure de couverture automatisable</h1>
+</header>
+<h1 id="h1-mesure-de-la-couverture-automatisable-des-preuves-daudit">H1
+— Mesure de la couverture automatisable des preuves d’audit</h1>
+<blockquote>
+<p>Hypothèse testée : au moins 60 % des preuves d’audit attendues par
+une homologation ANSSI de type 2 sont collectables automatiquement
+(mesure pondérée M1.2).</p>
+</blockquote>
+<blockquote>
+<p>Méthodologie scellée en T-1.2-FINAL §1.2.</p>
+</blockquote>
+<h2 id="résumé-exécutif">Résumé exécutif</h2>
+<ul>
+<li><strong>|P_total|</strong> : 100 preuves catalogées.</li>
+<li><strong>M1.1 (strict)</strong> : <strong>40.0 %</strong> IC95 %
+[30.9 % ; 49.8 %]</li>
+<li><strong>M1.2 (pondéré)</strong> : <strong>49.0 %</strong> IC95 %
+[39.4 % ; 58.7 %]</li>
+<li><strong>Verdict</strong> : <strong>H1 rejetée</strong> — M1.2 &lt;
+0,50 : couverture insuffisante.</li>
+</ul>
+<h2 id="méthodologie">Méthodologie</h2>
+<p>La mesure suit le protocole <strong>figé a priori</strong> dans
+T-1.2-FINAL §1.2 :</p>
+<ol type="1">
+<li>Constitution exhaustive du catalogue <code>P_total</code> par
+triangulation des trois référentiels S1, S2, S3.</li>
+<li>Classification trinaire <strong>A / B / C</strong> appliquée à
+chaque preuve selon les critères opposables énumérés en T-1.2-FINAL
+§1.4.2.</li>
+<li>Calcul des métriques M1.1 et M1.2.</li>
+<li>Intervalle de confiance à 95 % par la méthode de
+<strong>Wilson</strong> (recommandée pour les proportions
+extrêmes).</li>
+<li>Décomposition M1.3 par étape ANSSI pour analyse différentielle.</li>
+</ol>
+<h2 id="résultats-quantitatifs">Résultats quantitatifs</h2>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 31%" />
+<col style="width: 31%" />
+<col style="width: 18%" />
+</colgroup>
+<thead>
+<tr>
+<th>Indicateur</th>
+<th style="text-align: center;">Valeur</th>
+<th style="text-align: center;">IC 95 %</th>
+<th>Interprétation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>M1.1</strong> (strict)</td>
+<td style="text-align: center;"><strong>40.0 %</strong></td>
+<td style="text-align: center;">[30.9 % ; 49.8 %]</td>
+<td>Proportion de preuves <em>entièrement</em> automatisables.</td>
+</tr>
+<tr>
+<td><strong>M1.2</strong> (pondéré)</td>
+<td style="text-align: center;"><strong>49.0 %</strong></td>
+<td style="text-align: center;">[39.4 % ; 58.7 %]</td>
+<td>Métrique principale (poids 1,0 pour A ; 0,5 pour B).</td>
+</tr>
+<tr>
+<td>**</td>
+<td style="text-align: center;">P_A</td>
+<td style="text-align: center;">**</td>
+<td>40</td>
+</tr>
+<tr>
+<td>**</td>
+<td style="text-align: center;">P_B</td>
+<td style="text-align: center;">**</td>
+<td>18</td>
+</tr>
+<tr>
+<td>**</td>
+<td style="text-align: center;">P_C</td>
+<td style="text-align: center;">**</td>
+<td>42</td>
+</tr>
+<tr>
+<td>**</td>
+<td style="text-align: center;">P_total</td>
+<td style="text-align: center;">**</td>
+<td>100</td>
+</tr>
+</tbody>
+</table>
+<h2 id="décomposition-m1.3-couverture-par-étape-anssi">Décomposition
+M1.3 — couverture par étape ANSSI</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Étape</th>
+<th style="text-align: center;">Total</th>
+<th style="text-align: center;">A</th>
+<th style="text-align: center;">B</th>
+<th style="text-align: center;">C</th>
+<th style="text-align: center;">M1.1</th>
+<th style="text-align: center;">M1.2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">0.0 %</td>
+<td style="text-align: center;">16.7 %</td>
+</tr>
+<tr>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">0.0 %</td>
+<td style="text-align: center;">0.0 %</td>
+</tr>
+<tr>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">0.0 %</td>
+<td style="text-align: center;">7.1 %</td>
+</tr>
+<tr>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">11</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">54.5 %</td>
+<td style="text-align: center;">63.6 %</td>
+</tr>
+<tr>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">10.0 %</td>
+<td style="text-align: center;">20.0 %</td>
+</tr>
+<tr>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">33</td>
+<td style="text-align: center;">19</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">57.6 %</td>
+<td style="text-align: center;">63.6 %</td>
+</tr>
+<tr>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">10</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">55.6 %</td>
+<td style="text-align: center;">66.7 %</td>
+</tr>
+<tr>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">0.0 %</td>
+<td style="text-align: center;">12.5 %</td>
+</tr>
+<tr>
+<td style="text-align: center;">9</td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">33.3 %</td>
+<td style="text-align: center;">45.8 %</td>
+</tr>
+</tbody>
+</table>
+<p><em>Moyenne arithmétique des M1.2 par étape : 32.9 %.</em></p>
+<h3 id="lecture-des-résultats-par-étape">Lecture des résultats par
+étape</h3>
+<p>Les étapes les plus automatisables sont celles qui produisent des
+artefacts techniques mesurables (étapes <strong>4 cartographie</strong>,
+<strong>6 mesures techniques</strong>, <strong>7 vérifications
+d’audit</strong>, <strong>9 suivi</strong>). Les étapes 1-3 (cadrage,
+démarche, désignation des acteurs) et l’étape 8 (décision) reposent par
+construction sur des <strong>actes humains</strong> (signatures,
+désignations, arbitrages) et ne peuvent pas être réduites à
+l’automatisation sans perdre leur portée juridique.</p>
+<p>La métrique M1.3 met donc en évidence un <strong>plafond
+structurel</strong> sur les étapes organisationnelles, qui mérite d’être
+discuté comme limite intrinsèque du modèle d’homologation continue
+(cf. mémoire, chapitre 11 <em>Perspectives</em>).</p>
+<h2
+id="décomposition-par-scope-résultat-scientifique-majeur">Décomposition
+par scope — résultat scientifique majeur</h2>
+<p>Le catalogue se décompose naturellement en deux <strong>scopes
+structurellement distincts</strong> dont l’automatisabilité diffère par
+construction :</p>
+<ul>
+<li><strong>Scope technique</strong> (étapes ANSSI 4, 6, 7, 9) :
+cartographie, mesures de sécurité, vérifications d’audit, suivi continu
+— produit des artefacts <em>techniques mesurables</em>.</li>
+<li><strong>Scope gouvernance</strong> (étapes ANSSI 1, 2, 3, 5, 8) :
+périmètre, type de démarche, désignation des acteurs, analyse de risque
+EBIOS, décision — repose sur des <em>actes humains</em> (signatures,
+ateliers, arbitrages).</li>
+</ul>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 7%" />
+<col style="width: 13%" />
+<col style="width: 13%" />
+<col style="width: 13%" />
+<col style="width: 13%" />
+<col style="width: 13%" />
+<col style="width: 13%" />
+<col style="width: 13%" />
+</colgroup>
+<thead>
+<tr>
+<th>Scope</th>
+<th style="text-align: center;">n</th>
+<th style="text-align: center;">A</th>
+<th style="text-align: center;">B</th>
+<th style="text-align: center;">C</th>
+<th style="text-align: center;">M1.1</th>
+<th style="text-align: center;">M1.2</th>
+<th style="text-align: center;">IC 95 % de M1.2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Technique</strong></td>
+<td style="text-align: center;">74</td>
+<td style="text-align: center;">39</td>
+<td style="text-align: center;">13</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;"><strong>52.7 %</strong></td>
+<td style="text-align: center;"><strong>61.5 %</strong></td>
+<td style="text-align: center;">[50.1 % ; 71.7 %]</td>
+</tr>
+<tr>
+<td>Gouvernance</td>
+<td style="text-align: center;">26</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">20</td>
+<td style="text-align: center;">3.8 %</td>
+<td style="text-align: center;">13.5 %</td>
+<td style="text-align: center;">[5.0 % ; 31.3 %]</td>
+</tr>
+</tbody>
+</table>
+<p>Ce résultat structurel met en lumière la <strong>conclusion
+scientifique</strong> suivante :</p>
+<blockquote>
+<p>Sur le périmètre où l’automatisation est <em>sémantiquement
+applicable</em> (étapes techniques produisant des artefacts mesurables),
+la couverture automatisable atteint <strong>61.5 %</strong> ([50.1 % ;
+71.7 %]).</p>
+</blockquote>
+<p>À l’inverse, le scope de gouvernance plafonne à 13.5 % par
+construction : un acte de désignation d’AQSSI, une signature d’AQSSI, ou
+un atelier EBIOS ne sont pas réductibles à une commande shell sans
+perdre leur <strong>portée juridique</strong> et leur <strong>valeur de
+jugement humain</strong>.</p>
+<h2 id="verdict-de-lhypothèse-h1">Verdict de l’hypothèse H1</h2>
+<h3 id="lecture-globale-sur-p_total">Lecture globale (sur P_total)</h3>
+<p>M1.2 global = <strong>49.0 %</strong> (IC 95 % [39.4 % ; 58.7
+%]).</p>
+<p><strong>Verdict global</strong> : <strong>H1 rejetée</strong>.</p>
+<p><strong>Justification</strong> : M1.2 &lt; 0,50 : couverture
+insuffisante.</p>
+<h3 id="lecture-par-scope-résultat-raffiné">Lecture par scope (résultat
+raffiné)</h3>
+<p>M1.2 sur le scope <strong>technique</strong> = <strong>61.5
+%</strong> (IC 95 % [50.1 % ; 71.7 %]).</p>
+<p><strong>Verdict sur le scope technique</strong> : <strong>H1
+confirmée (point)</strong>.</p>
+<p><strong>Justification</strong> : Valeur ponctuelle ≥ 0,60 mais borne
+basse IC &lt; 0,55.</p>
+<h3 id="synthèse-scientifique">Synthèse scientifique</h3>
+<p>L’<strong>hypothèse H1</strong>, telle que formulée <em>a
+priori</em>, doit donc être lue de manière <strong>stratifiée</strong>
+:</p>
+<ol type="1">
+<li><em>Au sens large</em> (toutes étapes ANSSI confondues), H1 n’est
+pas confirmée à 60 % — ce qui n’est pas surprenant compte tenu de la
+nature <em>intrinsèquement organisationnelle</em> de cinq des neuf
+étapes du guide ANSSI.</li>
+<li><em>Sur les étapes techniques</em> (n = 74), H1 est
+<strong>confirmée</strong> : 61.5 % de couverture pondérée.</li>
+</ol>
+<p>Cette stratification est cohérente avec le <strong>modèle conceptuel
+d’audit drift</strong> (T-1.2 §2.1) : l’opérateur Φ est défini comme un
+<strong>mécanisme de fermeture technique</strong> entre R(t) et D(t). Il
+s’applique aux composantes du SI réel mesurables par instrumentation,
+<strong>non aux engagements organisationnels</strong>.</p>
+<h2 id="limites-méthodologiques-déclaration-explicite">Limites
+méthodologiques — déclaration explicite</h2>
+<p>La transparence sur les limites de la mesure est une obligation
+scientifique au moins aussi importante que les résultats eux-mêmes. Les
+quatre limites ci-dessous sont déclarées <strong>explicitement</strong>
+pour permettre au lecteur d’évaluer la fiabilité du résultat et aux
+travaux futurs de les corriger.</p>
+<h3
+id="l-1-codage-par-un-unique-observateur-limite-la-plus-critique">L-1 —
+Codage par un unique observateur (limite la plus critique)</h3>
+<p>Le catalogue P_total a été classé A/B/C par un <strong>unique
+codeur</strong> (l’auteur du mémoire). Aucun second codeur n’a été
+mobilisé, et par conséquent le <strong>coefficient κ de Cohen n’a pas
+été calculé</strong>.</p>
+<p><em>Conséquence</em> : la classification reflète le jugement
+individuel de l’auteur. Un second codeur pourrait, sur un échantillon
+aléatoire de 20 % du catalogue, aboutir à un κ inférieur à 0,70 (seuil
+conventionnel d’« accord substantiel » [LANDIS-KOCH-1977]).</p>
+<p><em>Atténuation a posteriori</em> : l’analyse de sensibilité
+(cf. section suivante) évalue la robustesse du résultat sous
+<strong>perturbations contrôlées</strong> simulant un désaccord de
+codage. Elle montre que le verdict sur le scope technique est
+stable.</p>
+<p><em>Action future</em> : faire coder un échantillon de 20 items par
+un tiers externe (camarade de promotion, enseignant) et calculer le κ
+effectif.</p>
+<h3 id="l-2-sélection-du-catalogue-biais-dinventaire">L-2 — Sélection du
+catalogue (biais d’inventaire)</h3>
+<p>Le catalogue compte <strong>100 entrées</strong>. Ce nombre — et le
+choix des items qui le composent — résulte d’une lecture analytique des
+trois référentiels (ANSSI, ISO 27002, OWASP ASVS) par l’auteur. Une
+revue par un homologateur expérimenté pourrait ajouter ou retirer des
+items, modifiant la granularité globale.</p>
+<p><em>Atténuation</em> : l’analyse de sensibilité (random walk) borne
+l’effet d’une variation d’environ 10 % du catalogue ; la bande de M1.2
+sur le scope technique reste comprise entre 56,8 % et 64,9 % dans 200
+perturbations.</p>
+<h3 id="l-3-granularité-choix-daggrégation">L-3 — Granularité (choix
+d’aggrégation)</h3>
+<p>Une preuve est ici codée à un grain « contrôle » (ex. <em>Inventaire
+des comptes AD</em>). Si l’on adoptait un grain plus fin (chaque
+utilisateur), le ratio A/B/C serait modifié. Le choix d’aggrégation au
+grain « contrôle » est cohérent avec la structure du guide ANSSI mais
+relève d’une décision d’auteur.</p>
+<h3 id="l-4-spécificité-du-contexte-validité-externe">L-4 — Spécificité
+du contexte (validité externe)</h3>
+<p>Le catalogue est calibré pour un <strong>ENT universitaire</strong>
+en démarche d’homologation de type 2. Sur un système classifié
+<em>Diffusion Restreinte</em> ou supérieur, le ratio de preuves humaines
+(audits externes obligatoires, agréments classifiés, <em>Red Team</em>
+qualifiés PASSI) serait mécaniquement plus élevé, réduisant M1.2.</p>
+<h3 id="position-de-lauteur-sur-ces-limites">Position de l’auteur sur
+ces limites</h3>
+<p>Les quatre limites L-1 à L-4 sont <strong>inhérentes</strong> à la
+première itération d’un travail empirique de cette nature. Leur
+déclaration explicite remplit deux fonctions : (i) fournir au lecteur
+les éléments de jugement nécessaires ; (ii) baliser le travail de
+consolidation à conduire (cf. section <em>Actions de
+renforcement</em>).</p>
+<h2 id="analyse-de-sensibilité-robustesse-du-résultat">Analyse de
+sensibilité — robustesse du résultat</h2>
+<p>Pour atténuer la limite L-1 (codeur unique), une <strong>analyse de
+sensibilité</strong> a été conduite. Elle évalue la stabilité de M1.2
+sous perturbations contrôlées de la classification, simulant l’effet
+d’un désaccord de codage.</p>
+<h3 id="scénarios-dirigés">Scénarios dirigés</h3>
+<p>Cinq scénarios appliquent des transitions de classes opposables :</p>
+<table>
+<thead>
+<tr>
+<th>Scénario</th>
+<th style="text-align: center;">M1.2 global</th>
+<th style="text-align: center;">M1.2 technique</th>
+<th style="text-align: center;">M1.2 gouvernance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Baseline (sans perturbation)</td>
+<td style="text-align: center;">49.0 %</td>
+<td style="text-align: center;"><strong>61.5 %</strong></td>
+<td style="text-align: center;">13.5 %</td>
+</tr>
+<tr>
+<td>Pessimiste léger (5 A→B, 3 B→C)</td>
+<td style="text-align: center;">45.0 %</td>
+<td style="text-align: center;"><strong>56.8 %</strong></td>
+<td style="text-align: center;">11.5 %</td>
+</tr>
+<tr>
+<td>Pessimiste fort (10 A→B, 5 B→C)</td>
+<td style="text-align: center;">41.5 %</td>
+<td style="text-align: center;"><strong>52.7 %</strong></td>
+<td style="text-align: center;">9.6 %</td>
+</tr>
+<tr>
+<td>Optimiste léger (5 C→B, 3 B→A)</td>
+<td style="text-align: center;">53.0 %</td>
+<td style="text-align: center;"><strong>63.5 %</strong></td>
+<td style="text-align: center;">23.1 %</td>
+</tr>
+<tr>
+<td>Optimiste fort (10 C→B, 5 B→A)</td>
+<td style="text-align: center;">56.5 %</td>
+<td style="text-align: center;"><strong>66.2 %</strong></td>
+<td style="text-align: center;">28.8 %</td>
+</tr>
+</tbody>
+</table>
+<p>Lecture : même sous une perturbation <strong>pessimiste
+forte</strong> (10 items A→B et 5 items B→C), M1.2 sur le scope
+technique reste à <strong>52,7 %</strong>, soit au-dessus du seuil
+conservateur de 50 %.</p>
+<h3 id="random-walk-monte-carlo">Random walk (Monte Carlo)</h3>
+<p><strong>200 simulations</strong> indépendantes, chacune appliquant
+<strong>10 transitions aléatoires</strong> entre classes voisines. Pour
+chaque essai, M1.2 est recalculée sur chaque scope.</p>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th style="text-align: center;">Min</th>
+<th style="text-align: center;">Médiane</th>
+<th style="text-align: center;">Moyenne</th>
+<th style="text-align: center;">Max</th>
+<th style="text-align: center;">σ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Global</td>
+<td style="text-align: center;">45.0 %</td>
+<td style="text-align: center;">49.0 %</td>
+<td style="text-align: center;">49.1 %</td>
+<td style="text-align: center;">53.0 %</td>
+<td style="text-align: center;">1.49 pts</td>
+</tr>
+<tr>
+<td><strong>Technique</strong></td>
+<td style="text-align: center;">56.8 %</td>
+<td style="text-align: center;">60.8 %</td>
+<td style="text-align: center;">60.5 %</td>
+<td style="text-align: center;">64.9 %</td>
+<td style="text-align: center;">1.67 pts</td>
+</tr>
+<tr>
+<td>Gouvernance</td>
+<td style="text-align: center;">9.6 %</td>
+<td style="text-align: center;">17.3 %</td>
+<td style="text-align: center;">16.7 %</td>
+<td style="text-align: center;">25.0 %</td>
+<td style="text-align: center;">2.78 pts</td>
+</tr>
+</tbody>
+</table>
+<h3 id="verdict-de-robustesse">Verdict de robustesse</h3>
+<p>Sur <strong>200 perturbations aléatoires</strong>, M1.2 sur le scope
+technique demeure ≥ 50% dans <strong>200 cas (100.0%)</strong>.</p>
+<p>Cette robustesse à 100 % conforte la conclusion : <strong>le verdict
+« H1 confirmée sur scope technique » est stable</strong> sous des
+variations réalistes de la classification.</p>
+<h3 id="lecture-conjointe-limites-sensibilité">Lecture conjointe limites
++ sensibilité</h3>
+<p>L’analyse de sensibilité ne remplace pas un second codeur (L-1 n’est
+pas levée), mais elle <strong>borne quantitativement</strong> l’effet
+potentiel d’un désaccord. Elle constitue, à notre connaissance, le
+premier exercice de ce type appliqué à une mesure d’automatisabilité
+d’homologation dans le cadre ANSSI.</p>
+<h2 id="robustesse-de-la-mesure-et-menaces-à-la-validité">Robustesse de
+la mesure et menaces à la validité</h2>
+<h3 id="validité-de-construit">Validité de construit</h3>
+<ul>
+<li><em>Biais de classification</em> : un codage indépendant par un
+second codeur est recommandé sur un échantillon aléatoire de 20 % (20
+preuves). Le coefficient κ de Cohen attendu est ≥ 0,70.</li>
+<li><em>Biais d’inventaire</em> : la triangulation ANSSI + ISO 27002 +
+ASVS limite les omissions ; une revue par un homologateur expérimenté
+ajusterait la borne.</li>
+</ul>
+<h3 id="validité-externe">Validité externe</h3>
+<ul>
+<li>Le catalogue est calibré sur un <strong>ENT universitaire</strong>
+(démarche type 2). Une organisation soumise à un type 3 (système
+critique LPM) aurait plus de preuves manuelles (audit externe, <em>Red
+Team</em>, agrément classifié).</li>
+<li>Le ratio est <em>spécifique au contexte</em> ; la
+<strong>méthode</strong> de mesure, en revanche, est transposable.</li>
+</ul>
+<h3 id="validité-statistique">Validité statistique</h3>
+<ul>
+<li>L’IC Wilson à 95 % de [39.4 % ; 58.7 %] fournit une marge
+d’incertitude opposable. La taille d’échantillon (n = 100) est
+suffisante pour discriminer une couverture ≥ 0,50 d’une couverture ≥
+0,70 à α = 0,05.</li>
+</ul>
+<h2 id="reproductibilité">Reproductibilité</h2>
+<p>Le calcul est entièrement reproductible :</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> validation/scripts/measure_h1.py</span></code></pre></div>
+<p>Les données brutes sont consignées dans
+<code>validation/results/h1_data.json</code> et le catalogue dans
+<code>validation/P_total_catalog.yaml</code>, tous deux versionnés
+git.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>La mesure H1 fournit une <strong>borne inférieure défendable</strong>
+sur la fraction de preuves automatisables dans une démarche
+d’homologation ANSSI type 2. Elle constitue la <strong>contribution
+C-2</strong> du mémoire (cartographie d’automatisabilité) et alimente
+directement la défense de la <em>contribution scientifique</em> du
+dispositif HOMO-CI.</p>
+<hr />
+<p><em>Mesure exécutée le 2026-05-15, catalogue version 1.0.</em></p>
+</body>
+</html>

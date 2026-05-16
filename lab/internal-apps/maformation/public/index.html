@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MaFormation — Portail étudiant UrbanUpC</title>
+  <link rel="stylesheet" href="styles.css">
+  <base href="./">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="logo">🎓</span>
+      <strong>MaFormation</strong>
+      <small>Portail étudiant — UrbanUpC</small>
+    </div>
+    <div id="user-info" hidden>
+      <span id="user-name"></span>
+      <button id="logout-btn" type="button">Déconnexion</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="login-view">
+      <h1>Connexion</h1>
+      <p class="hint">Identifiants Active Directory (corpnet.local)</p>
+      <form id="login-form" autocomplete="off">
+        <label>Identifiant <input id="login-user" name="samAccount" required autocomplete="username" maxlength="64"></label>
+        <label>Mot de passe <input id="login-pw" name="password" type="password" required autocomplete="current-password" maxlength="128"></label>
+        <button type="submit">Se connecter</button>
+        <p id="login-err" class="error" hidden></p>
+      </form>
+    </section>
+
+    <section id="app-view" hidden>
+      <nav class="tabs">
+        <button data-tab="courses"   class="active">Mes cours</button>
+        <button data-tab="schedule">Emploi du temps</button>
+        <button data-tab="documents">Mes documents</button>
+        <button data-tab="grades">Mes notes</button>
+      </nav>
+
+      <div id="tab-courses"   class="tab active"></div>
+      <div id="tab-schedule"  class="tab"></div>
+      <div id="tab-documents" class="tab"></div>
+      <div id="tab-grades"    class="tab"></div>
+    </section>
+  </main>
+
+  <footer>
+    <small>UrbanUpC · Université Paris Cité · MaFormation</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

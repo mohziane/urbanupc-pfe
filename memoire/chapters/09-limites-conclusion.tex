@@ -1,0 +1,156 @@
+\chapter{Limites, perspectives, conclusion}
+\label{ch:limites}
+
+\section{Limites du travail}
+
+\subsection{Étude de cas unique}
+
+Tout ce qui est mesuré l'est sur \emph{un seul} environnement~:
+le lab UrbanUpC. On n'a pas tourné l'outil sur un autre ENT, ni
+sur un SI de taille différente. Les chiffres sont valables pour
+ce lab~; leur transposition à un autre contexte demande au
+minimum~:
+
+\begin{itemize}
+  \item un déploiement sur une autre infrastructure cloud
+    (autre RG Azure, ou autre fournisseur)~;
+  \item une adaptation des watchers à l'AD réel et au SIEM
+    réel de l'organisation cible~;
+  \item une nouvelle classification A/B/C des preuves attendues
+    pour le périmètre métier concerné.
+\end{itemize}
+
+\subsection{Volume modeste}
+
+Le lab fait tourner 3 VMs, 3 applications, une vingtaine
+d'utilisateurs AD. Un ENT en production a plutôt~:
+
+\begin{itemize}
+  \item 50 à 200 applications homologuées~;
+  \item 10\,000 à 30\,000 utilisateurs AD actifs~;
+  \item plusieurs centaines de règles NSG/firewall.
+\end{itemize}
+
+Les 90~secondes par cycle deviendraient probablement 10 à
+30~minutes à cette échelle. Rien d'impossible, mais il faudrait
+paralléliser les watchers et probablement passer SQLite à
+PostgreSQL pour le stockage.
+
+\subsection{Couverture technique uniquement}
+
+L'outil n'attaque que la couche technique. Les preuves
+organisationnelles (formations effectuées, revues d'analyse de
+risque, procédures appliquées) restent manuelles. Un dossier
+HOMO-CI seul ne suffit pas à homologuer~: il alimente une part
+du dossier, l'autre part vient du chef de projet et de l'AQSSI.
+
+\subsection{Pas encore validé par l'ANSSI}
+
+Le cadre actuel reconnaît un dossier daté et signé. Rien dans le
+texte ne dit qu'un dossier régénéré chaque nuit est conforme. À
+ce stade, HOMO-CI produit un livrable \emph{compatible avec la
+structure ANSSI}, mais pas un dossier officiellement reconnu.
+Une démarche de discussion avec l'ANSSI pour valider ce modèle
+hybride serait un prolongement naturel.
+
+\subsection{Watchers en stub}
+
+En v0.1, deux watchers sont complets (\texttt{wc\_nsg} et
+\texttt{wc\_cve}). Les watchers AD et Wazuh sont câblés dans
+l'architecture mais retournent des données simulées. Les
+compléter est la première chose à faire pour une v0.2.
+
+\section{Perspectives}
+
+\subsection{Court terme (3--6 mois)}
+
+\begin{itemize}
+  \item Finir les watchers \texttt{wc\_ad} (énumération LDAP des
+    comptes, groupes, ACL) et \texttt{wc\_siem} (API Wazuh~:
+    règles actives, état des agents, alertes par catégorie).
+  \item Ajouter un watcher \texttt{wc\_asvs} pour cartographier
+    automatiquement la conformité OWASP~ASVS sur les
+    applications.
+  \item Ajouter une boucle de remédiation simple~: pour les
+    dérives à matérialité \emph{high} (NSG ouvert sur Internet,
+    CVE critique), pouvoir proposer un PR git automatique.
+\end{itemize}
+
+\subsection{Moyen terme (6--18 mois)}
+
+\begin{itemize}
+  \item Validation sur un vrai ENT. L'idéal serait un partenariat
+    avec une université qui accepte de déployer HOMO-CI sur un
+    périmètre limité (1 ou 2 applications).
+  \item Intégration avec un système de tickets (Jira,
+    GitLab~Issues) pour que chaque dérive détectée crée
+    automatiquement un ticket assigné au responsable.
+  \item Interface web minimaliste pour permettre aux AQSSI non
+    techniques de consulter l'état du dossier sans passer par
+    le CLI.
+\end{itemize}
+
+\subsection{Long terme et transposition}
+
+Le pipeline est conçu pour un ENT, mais la mécanique
+(\emph{watchers, stockage, diff, rendu signé}) est
+indépendante du domaine métier. Les domaines naturels de
+transposition~:
+
+\begin{itemize}
+  \item \textbf{Transport.} Les SI des opérateurs de transport
+    (RATP, SNCF) sont des cibles NIS~2 avec des contraintes
+    similaires. Les watchers seraient à adapter (équipements
+    industriels, supervision OT) mais le modèle reste valable.
+  \item \textbf{Santé et hôpitaux.} Données sensibles, cadre
+    légal contraignant, infra hétérogène --- terrain idéal pour
+    de la conformité continue.
+  \item \textbf{Collectivités territoriales.} Périmètre proche
+    de celui d'un ENT, mêmes contraintes ANSSI/NIS~2.
+\end{itemize}
+
+\section{Ce qu'on retient}
+
+\subsection{La technique}
+
+Le pipeline est modeste en taille (\textasciitilde{}2\,000~lignes
+de Python) et utilise des briques matures. Sa valeur n'est pas
+dans une innovation algorithmique~: elle est dans
+\textbf{l'assemblage}, et dans la rigueur du modèle de données
+(\emph{Evidence} avec hash, chaînage SHA-256 entre dossiers,
+canonicalisation JSON).
+
+\subsection{Le lab}
+
+UrbanUpC est, en lui-même, un livrable utile pour la formation~:
+un SOC complet, reproductible, avec des attaques documentées et
+des règles de détection qui fonctionnent. Il sert ici de banc de
+test pour HOMO-CI, mais pourrait servir de support à des TPs
+cybersécurité sans modification majeure.
+
+\subsection{Le constat principal}
+
+\emph{Maintenir un dossier d'homologation à jour est possible,
+sans effort proportionnel à la taille du SI, à condition de
+limiter le périmètre à la couche technique.} C'est le résultat
+le plus important du PFE~: il ne défend pas l'automatisation
+totale, qui n'a pas de sens (les preuves de gouvernance restent
+humaines), mais il démontre que la partie automatisable peut
+l'être avec un outil de taille raisonnable.
+
+\subsection{Et ce qui reste à faire}
+
+Beaucoup de choses, dont les plus importantes~: finir les
+watchers manquants, valider sur un autre environnement,
+discuter avec l'ANSSI pour valider la compatibilité du modèle,
+écrire un guide d'adoption pour qu'un autre étudiant ou un autre
+ingénieur puisse reprendre le projet en quelques jours.
+
+\begin{takeaway}
+Le PFE livre deux choses concrètes~: un lab SOC complet
+(UrbanUpC, 3~VMs Azure, Wazuh, AD, applications vulnérables) et
+un outil d'automatisation (HOMO-CI, pipeline Python en six
+couches). L'outil fait son travail sur la couche technique~; il
+ne prétend pas remplacer l'homologation officielle, juste la
+rendre plus tenable dans le temps.
+\end{takeaway}

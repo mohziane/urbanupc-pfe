@@ -1,0 +1,146 @@
+\chapter{Extraits de code et accès au dépôt}
+\label{annexe:code}
+
+\section{Accès au code}
+
+Le code source du lab et du pipeline HOMO-CI est dans le dépôt~:
+
+\begin{itemize}
+  \item \texttt{soc/infra/}~: scripts de déploiement Azure (Bash et
+    PowerShell) pour les 3 VMs.
+  \item \texttt{soc/corpnet/}~: code PHP de l'application
+    CorpNet (portail interne, volontairement vulnérable).
+  \item \texttt{soc/internal-apps/}~: code Node.js des
+    applications MaFormation et MaCandidature, plus la
+    configuration Docker Compose.
+  \item \texttt{soc/pipeline/}~: code Python du pipeline
+    HOMO-CI.
+\end{itemize}
+
+\section{Démarrage rapide du pipeline}
+
+\begin{lstlisting}[language=bash,caption={Installation et premier
+cycle.}]
+cd pipeline
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+export AZURE_SUBSCRIPTION_ID=...
+export RESOURCE_GROUP=RG-PFE-SOC
+
+# Cycle complet
+make pipeline-run
+
+# Sortie : build/dossier-AAAAMMJJ-HHMMSS.pdf
+\end{lstlisting}
+
+\section{Le modèle \texttt{Evidence}}
+
+\begin{lstlisting}[language=Python,caption={Modèle Pydantic
+\texttt{Evidence} (extrait).}]
+class Evidence(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: UUID = Field(default_factory=uuid4)
+    ts: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    source: SourceType
+    category: Category
+    ref: str = Field(..., min_length=1, max_length=255)
+    scope: Scope = Field(default_factory=Scope)
+    payload: dict[str, Any]
+    payload_hash: str = Field(..., pattern=r"^[a-f0-9]{64}$")
+    weight: Weight = Field(default=Weight.AUTO)
+    materiality: Materiality = Field(default=Materiality.MEDIUM)
+
+    @classmethod
+    def from_payload(cls, source, category, ref, payload, ...):
+        canonical = json.dumps(
+            payload, sort_keys=True, separators=(",", ":")
+        )
+        payload_hash = hashlib.sha256(
+            canonical.encode("utf-8")
+        ).hexdigest()
+        return cls(
+            source=source, category=category, ref=ref,
+            payload=payload, payload_hash=payload_hash, ...
+        )
+\end{lstlisting}
+
+\section{Le diff}
+
+\begin{lstlisting}[language=Python,caption={Moteur de diff (extrait).}]
+def diff(previous, current) -> list[Change]:
+    changes = []
+    prev_keys = set(previous.keys())
+    curr_keys = set(current.keys())
+
+    for key in curr_keys - prev_keys:
+        ev = current[key]
+        changes.append(
+            Change(type=ChangeType.CREATED,
+                   ref=ev.ref, category=ev.category,
+                   after=ev)
+        )
+    for key in prev_keys - curr_keys:
+        ev = previous[key]
+        changes.append(
+            Change(type=ChangeType.DELETED,
+                   ref=ev.ref, category=ev.category,
+                   before=ev)
+        )
+    for key in prev_keys & curr_keys:
+        if previous[key].payload_hash != current[key].payload_hash:
+            changes.append(
+                Change(type=ChangeType.UPDATED,
+                       ref=current[key].ref,
+                       category=current[key].category,
+                       before=previous[key], after=current[key])
+            )
+    return changes
+\end{lstlisting}
+
+\section{Workflow GitHub Actions (cycle nightly)}
+
+\begin{lstlisting}[language=bash,caption={\texttt{.github/workflows/nightly.yml}
+(extrait).}]
+name: HOMO-CI nightly
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC tous les jours
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r pipeline/requirements.txt
+      - name: Run pipeline
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUB_ID }}
+        run: |
+          cd pipeline
+          homo-ci collect
+          homo-ci diff
+          homo-ci render
+          homo-ci publish
+\end{lstlisting}
+
+\section{Dépendances principales}
+
+\begin{itemize}
+  \item \texttt{pydantic >= 2.5}~: validation des modèles
+    \texttt{Evidence}, \texttt{Change}, \texttt{DossierSnapshot}.
+  \item \texttt{azure-identity}, \texttt{azure-mgmt-network},
+    \texttt{azure-mgmt-resource}~: SDK Azure officiel.
+  \item \texttt{jinja2 >= 3.1}~: templating Markdown.
+  \item \texttt{pypandoc} et \texttt{weasyprint}~: conversion
+    Markdown vers PDF.
+  \item \texttt{click} et \texttt{rich}~: CLI et affichage.
+\end{itemize}

@@ -1,0 +1,12 @@
+body { font-family: -apple-system, system-ui, sans-serif; max-width: 900px; margin: 2em auto; padding: 0 1.5em; color: #222; line-height: 1.55; }
+h1 { color: #003366; border-bottom: 3px solid #003366; padding-bottom: 0.3em; }
+h2 { color: #003366; margin-top: 1.5em; border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
+h3 { color: #2a5d8f; }
+table { border-collapse: collapse; margin: 1em 0; width: 100%; font-size: 0.9em; }
+th, td { border: 1px solid #aaa; padding: 0.4em 0.7em; }
+th { background: #e8eef6; }
+code { background: #f5f5f5; padding: 0.1em 0.3em; border-radius: 3px; }
+pre { background: #f5f5f5; padding: 0.8em; border-radius: 4px; overflow-x: auto; }
+blockquote { border-left: 4px solid #003366; padding-left: 1em; color: #555; font-style: italic; margin: 1em 0; }
+strong { color: #003366; }
+@page { size: A4; margin: 1.8cm 1.5cm; }

@@ -1,0 +1,160 @@
+/* ─────────────────────────────────────────────────────────────────────
+   EBIOS RM analysis document — professional risk-manager styling
+   ─────────────────────────────────────────────────────────────────── */
+
+@page {
+  size: A4;
+  margin: 25mm 22mm 22mm 22mm;
+  @top-left {
+    content: string(atelier-title);
+    font-family: "Helvetica Neue", "Inter", system-ui, sans-serif;
+    font-size: 8.5pt;
+    color: #6b7280;
+  }
+  @top-right {
+    content: "EBIOS RM — UrbanUpC — DR";
+    font-family: "Helvetica Neue", "Inter", system-ui, sans-serif;
+    font-size: 8.5pt;
+    color: #6b7280;
+  }
+  @bottom-left {
+    content: "Réf. EBIOS-RM-URBANUPC-2026-V1.0";
+    font-family: "Helvetica Neue", "Inter", system-ui, sans-serif;
+    font-size: 8pt;
+    color: #6b7280;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " / " counter(pages);
+    font-family: "Helvetica Neue", "Inter", system-ui, sans-serif;
+    font-size: 8.5pt;
+    color: #374151;
+  }
+}
+
+@page :first { @top-left { content: none } @top-right { content: none } @bottom-left { content: none } @bottom-right { content: none } }
+@page cover  { margin: 0; @top-left { content: none } @top-right { content: none } @bottom-left { content: none } @bottom-right { content: none } }
+
+.cover-page { page: cover; page-break-after: always; }
+
+/* ─── Typo ─── */
+html { font-family: "Charter", "Georgia", "Times New Roman", serif; font-size: 10.5pt; line-height: 1.5; color: #1f2937; }
+body { margin: 0; counter-reset: atelier figure table; }
+h1, h2, h3, h4 { font-family: "Helvetica Neue", "Inter", system-ui, sans-serif; color: #0b2545; line-height: 1.25; }
+p { text-align: justify; hyphens: auto; }
+a { color: #1d4ed8; text-decoration: none; }
+
+/* ─── Headings ─── */
+h1 {
+  font-size: 20pt;
+  margin: 0 0 1rem 0;
+  padding-bottom: .35rem;
+  border-bottom: 3px solid #0b2545;
+  page-break-before: always;
+  string-set: atelier-title content();
+}
+.cover-page h1, .frontmatter h1 { page-break-before: avoid; }
+
+h2 { font-size: 14pt; margin: 1.4rem 0 .5rem 0; color: #0b2545; padding-left: 0; border-left: 4px solid #1d4ed8; padding-left: .6rem; }
+h3 { font-size: 11.5pt; margin: 1rem 0 .35rem 0; color: #1e3a8a; }
+h4 { font-size: 10.5pt; margin: .8rem 0 .25rem 0; color: #374151; font-style: italic; }
+
+/* ─── Atelier numbering ─── */
+.atelier {
+  counter-increment: atelier;
+}
+.atelier h1::before {
+  content: "Atelier " counter(atelier) " — ";
+  color: #1d4ed8;
+}
+.no-number h1::before { content: ""; }
+
+/* ─── Cover page ─── */
+.cover-page {
+  height: 297mm; width: 210mm; padding: 30mm 25mm 20mm 25mm;
+  box-sizing: border-box; display: flex; flex-direction: column;
+  background: linear-gradient(135deg, #0b2545 0%, #13315c 100%);
+  color: #f5f9ff;
+}
+.cover-logo { font-size: 9.5pt; letter-spacing: .25em; color: #93c5fd; text-transform: uppercase; }
+.cover-classification { display: inline-block; margin-top: 5mm; padding: 3px 12px; background: #b91c1c; color: white; font-size: 9pt; font-weight: 700; letter-spacing: .1em; font-family: "Helvetica Neue", sans-serif; border-radius: 3px; }
+.cover-title { font-size: 24pt; font-weight: 700; margin: 14mm 0 5mm; line-height: 1.15; font-family: "Helvetica Neue", "Inter", sans-serif; }
+.cover-subtitle { font-size: 13pt; font-weight: 400; color: #cbd5e1; margin-bottom: 8mm; line-height: 1.3; }
+.cover-meta-block { background: rgba(255,255,255,.08); padding: 5mm 6mm; border-left: 3px solid #60a5fa; margin: 10mm 0; }
+.cover-meta-row { display: flex; gap: 6mm; margin: 1.5mm 0; font-size: 10pt; }
+.cover-meta-row strong { color: #f1f5f9; min-width: 35mm; }
+.cover-meta-row span { color: #cbd5e1; }
+.cover-spacer { flex: 1; }
+.cover-footer { font-size: 8.5pt; color: #94a3b8; border-top: 1px solid #334155; padding-top: 4mm; line-height: 1.4; }
+
+/* ─── Executive summary / résumé ─── */
+.exec-summary { background: #fef3c7; border-left: 4px solid #d97706; padding: 14px 18px; margin: 1rem 0 1.5rem; page-break-inside: avoid; }
+.exec-summary h2 { margin-top: 0; border-left: none; padding-left: 0; }
+
+/* ─── Standard text elements ─── */
+ul, ol { margin: .4rem 0 .8rem 1.4rem; }
+li { margin: .15rem 0; }
+blockquote { border-left: 3px solid #93c5fd; margin: .8rem 0; padding: .3rem .8rem; color: #1e3a8a; background: #eff6ff; font-style: italic; }
+code { font-family: "JetBrains Mono", "Menlo", monospace; font-size: 9.5pt; background: #e5e7eb; padding: 1px 4px; border-radius: 3px; }
+pre { font-family: "JetBrains Mono", "Menlo", monospace; font-size: 8.5pt; background: #0f172a; color: #e2e8f0; padding: 10px 14px; border-radius: 6px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; page-break-inside: avoid; }
+
+/* ─── Tables ─── */
+table { border-collapse: collapse; width: 100%; margin: .8rem 0 1.2rem; font-size: 9.5pt; page-break-inside: avoid; }
+table caption { caption-side: bottom; font-size: 8.5pt; color: #6b7280; font-style: italic; padding: .3rem 0; counter-increment: table; text-align: left; }
+table caption::before { content: "Tableau " counter(table) " — "; font-weight: 700; color: #0b2545; font-style: normal; }
+th, td { border: 1px solid #d1d5db; padding: 5px 8px; text-align: left; vertical-align: top; }
+th { background: #0b2545; color: #f5f9ff; font-weight: 600; font-family: "Helvetica Neue", sans-serif; font-size: 9pt; }
+tr:nth-child(even) td { background: #f9fafb; }
+
+/* ─── Risk cells (couleur de fond) ─── */
+td.risk-1, td.risk-2  { background: #d1fae5 !important; }    /* faible — vert clair */
+td.risk-3, td.risk-4  { background: #fef3c7 !important; }    /* modéré — jaune */
+td.risk-6, td.risk-8, td.risk-9  { background: #fed7aa !important; }    /* élevé — orange */
+td.risk-12, td.risk-16 { background: #fecaca !important; font-weight: 700; color: #7f1d1d; }  /* critique — rouge */
+.risk-label { font-weight: 700; }
+.risk-label-low    { color: #047857; }
+.risk-label-medium { color: #b45309; }
+.risk-label-high   { color: #c2410c; }
+.risk-label-crit   { color: #b91c1c; }
+
+/* ─── Inline badges ─── */
+.tag { display: inline-block; padding: 1px 7px; font-size: 8.5pt; border-radius: 3px; background: #e5e7eb; color: #374151; margin-right: 3px; font-family: "Helvetica Neue", sans-serif; }
+.tag-vm   { background: #dbeafe; color: #1e40af; }
+.tag-bs   { background: #ede9fe; color: #5b21b6; }
+.tag-er   { background: #fee2e2; color: #991b1b; }
+.tag-sr   { background: #fef3c7; color: #92400e; }
+.tag-ov   { background: #d1fae5; color: #065f46; }
+.tag-ss   { background: #fce7f3; color: #9d174d; }
+.tag-so   { background: #fce7f3; color: #831843; font-weight: 700; }
+.tag-mitre { background: #ddd6fe; color: #5b21b6; }
+
+/* ─── Boxes ─── */
+.box { padding: 10px 14px; border-radius: 4px; margin: .8rem 0; page-break-inside: avoid; }
+.box-info { background: #eff6ff; border-left: 4px solid #1d4ed8; }
+.box-warn { background: #fffbeb; border-left: 4px solid #d97706; }
+.box-crit { background: #fef2f2; border-left: 4px solid #b91c1c; }
+.box-rec  { background: #f0fdf4; border-left: 4px solid #15803d; }
+.box-method { background: #f1f5f9; border-left: 4px solid #64748b; font-size: 9.5pt; }
+.box h4 { margin: 0 0 .25rem 0; font-style: normal; font-weight: 700; }
+
+/* ─── Decision blocks ─── */
+.decision { background: #fef3c7; border: 1px solid #d97706; padding: 10px 14px; margin: .8rem 0; page-break-inside: avoid; }
+.decision h4 { margin: 0 0 .25rem 0; color: #92400e; font-style: normal; font-weight: 700; }
+
+/* ─── Cartographie heat-map (texte) ─── */
+.heatmap { font-family: "JetBrains Mono", monospace; font-size: 9.5pt; line-height: 1.5; background: #f9fafb; padding: 12px; border-radius: 4px; border: 1px solid #d1d5db; page-break-inside: avoid; }
+
+/* ─── Signature block ─── */
+.signatures { margin: 2rem 0; page-break-inside: avoid; }
+.sig-row { display: flex; gap: 2rem; margin: 1rem 0; }
+.sig-block { flex: 1; border-top: 1px solid #374151; padding-top: 8px; }
+.sig-block strong { display: block; }
+.sig-block small { color: #6b7280; }
+
+/* ─── Page helpers ─── */
+.page-break { page-break-before: always; }
+.no-break { page-break-inside: avoid; }
+.frontmatter { page-break-after: always; }
+
+/* ─── Definition lists ─── */
+dl.terms dt { font-weight: 700; color: #0b2545; margin-top: .4rem; }
+dl.terms dd { margin: .1rem 0 .3rem 1.2rem; }

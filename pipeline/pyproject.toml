@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "homo-ci"
+version = "0.1.0"
+description = "Pipeline d'homologation continue pour SI universitaire (PFE UrbanUpC)"
+authors = [{name = "Mohziane", email = "mohziane02@gmail.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+    "pydantic>=2.5",
+    "azure-identity>=1.15",
+    "azure-mgmt-network>=25.0",
+    "azure-mgmt-resource>=23.0",
+    "azure-storage-blob>=12.19",
+    "jinja2>=3.1",
+    "click>=8.1",
+    "rich>=13.7",
+    "pypandoc>=1.13",
+    "weasyprint>=60",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "mypy>=1.7",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+homo-ci = "homo_ci.cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["homo_ci/tests"]
+addopts = "-v --tb=short --color=yes"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+exclude = ["homo_ci/tests"]

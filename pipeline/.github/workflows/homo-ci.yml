@@ -1,0 +1,80 @@
+# HOMO-CI — Pipeline d'homologation continue
+# Déclenchement : nightly (22:00 UTC) + sur push branche main + manuel.
+# Sortie : Évidences collectées, dossier régénéré + signé, snapshot
+# persisté dans Git.
+
+name: HOMO-CI
+
+on:
+  schedule:
+    - cron: "0 22 * * *"
+  push:
+    branches: [main]
+    paths:
+      - 'pipeline/**'
+      - 'internal-apps/**'
+      - '.github/workflows/homo-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write     # pour commit du trail
+  id-token: write     # OIDC vers Azure
+  issues: write       # alertes critiques
+
+jobs:
+  homo-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: pipeline
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Unit tests
+        run: pytest homo_ci/tests -v
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run pipeline
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          RESOURCE_GROUP: RG-PFE-SOC
+        run: make pipeline
+
+      - name: Verify hash chain
+        run: make verify
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dossier-${{ github.run_number }}
+          path: pipeline/build/dossier-*.pdf
+          retention-days: 90
+
+      - name: Commit evidence trail
+        run: |
+          git config user.email "homo-ci@urbanupc.local"
+          git config user.name "HOMO-CI Bot"
+          git add pipeline/.homo-ci/evidence/trail/*.jsonl || true
+          git diff --cached --quiet || git commit -m "homo-ci: evidence trail $(date -Iseconds)"
+          git push || true

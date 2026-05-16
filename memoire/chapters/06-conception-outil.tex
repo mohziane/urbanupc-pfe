@@ -1,0 +1,171 @@
+\chapter{Conception de l'outil HOMO-CI}
+\label{ch:conception}
+
+Ce chapitre explique ce que l'outil doit faire et pourquoi il est
+construit comme il est construit. Le code lui-même est détaillé
+au chapitre suivant.
+
+\section{À quoi sert l'outil}
+
+HOMO-CI répond à une question simple~: \emph{comment garder le
+dossier d'homologation aligné sur l'état réel du SI, sans passer
+des semaines à le réécrire à la main~?}
+
+Concrètement, il fait quatre choses à chaque exécution~:
+
+\begin{enumerate}
+  \item Il \textbf{collecte} les preuves techniques en interrogeant
+    directement les sources~: API Azure pour les NSG, Trivy pour
+    les CVE des images Docker, LDAP pour l'inventaire AD, API
+    Wazuh pour les règles et alertes.
+  \item Il \textbf{stocke} ces preuves dans une base locale
+    (SQLite + journal JSONL), avec un horodatage et un hash pour
+    chaque preuve.
+  \item Il \textbf{compare} avec l'exécution précédente et
+    identifie ce qui a changé (création, modification,
+    suppression).
+  \item Il \textbf{régénère} le dossier d'homologation au format
+    Markdown puis PDF, en suivant la structure ANSSI, et le signe
+    avec un hash SHA-256 chaîné au dossier précédent.
+\end{enumerate}
+
+\section{Cinq principes directeurs}
+
+Les choix techniques de l'outil suivent cinq principes~:
+
+\begin{description}
+  \item[Source de vérité unique.] L'état attendu du SI est dans
+    le code (scripts Terraform, manifestes Docker, configuration
+    Wazuh versionnés en git). L'écart avec l'état réel collecté
+    par l'outil est une \emph{dérive} qu'il faut documenter.
+  \item[Idempotence.] Exécuter l'outil deux fois de suite sur le
+    même état produit la même sortie. Pas d'effets de bord, pas
+    de compteurs qui s'incrémentent au hasard.
+  \item[Traçabilité.] Chaque preuve a un UUID, un timestamp, un
+    hash de payload, une signature de source. Chaque dossier
+    généré référence le hash du dossier précédent
+    (\emph{hash chain}). On peut reconstruire l'historique
+    complet.
+  \item[Découplage par messages.] Les watchers ne se parlent
+    pas entre eux. Ils écrivent dans un \emph{evidence store}
+    commun (SQLite + JSONL). Si l'API Azure tombe, le watcher AD
+    continue à tourner.
+  \item[Le pipeline est lui-même un SI à sécuriser.] Moindre
+    privilège pour les credentials Azure, secrets en variable
+    d'environnement (idéalement en Key Vault), signature
+    cryptographique du dossier produit.
+\end{description}
+
+\section{Architecture en six couches}
+
+L'outil est organisé en six couches empilées~:
+
+\begin{figure}[h]
+\centering
+\begin{small}
+\begin{verbatim}
++----------------------------------------------+
+| Couche 6 — Gouvernance (KRI, alertes)        |
++----------------------------------------------+
+| Couche 5 — Publication (PDF signé + Blob)    |
++----------------------------------------------+
+| Couche 4 — Génération (Jinja2 + pandoc)      |
++----------------------------------------------+
+| Couche 3 — Détection de changement (Diff)    |
++----------------------------------------------+
+| Couche 2 — Stockage (SQLite + JSONL)         |
++----------------------------------------------+
+| Couche 1 — Collecte (watchers parallèles)    |
++----------------------------------------------+
+\end{verbatim}
+\end{small}
+\caption{Architecture en six couches de HOMO-CI.}
+\label{fig:archi-pipeline}
+\end{figure}
+
+\paragraph{Couche 1 --- Collecte.}
+Un \emph{watcher} par source de données~: \texttt{wc\_nsg} pour
+les NSG Azure, \texttt{wc\_cve} pour Trivy, \texttt{wc\_ad} pour
+Active Directory, \texttt{wc\_siem} pour Wazuh. Chaque watcher
+implémente la même interface \texttt{BaseWatcher} et produit une
+liste d'\texttt{Evidence}.
+
+\paragraph{Couche 2 --- Stockage.}
+SQLite pour le requêtage rapide, JSON Lines pour les snapshots
+historiques. Les deux formats sont synchronisés à chaque
+collecte.
+
+\paragraph{Couche 3 --- Diff.}
+Compare deux snapshots et produit une liste de \texttt{Change}
+typés (\texttt{CREATED}, \texttt{UPDATED}, \texttt{DELETED}).
+Complexité $O(N+M)$ par indexation sur la clé
+\texttt{(source, ref)}.
+
+\paragraph{Couche 4 --- Génération.}
+Un template Jinja2 (\texttt{dossier.md.j2}) prend les preuves
+collectées et les rend en Markdown structuré selon les sections
+ANSSI. Pandoc convertit ensuite en PDF, WeasyPrint applique le
+style CSS.
+
+\paragraph{Couche 5 --- Publication.}
+Le PDF est signé (hash SHA-256 chaîné au précédent), poussé sur
+un Blob Storage Azure, et son hash est journalisé.
+
+\paragraph{Couche 6 --- Gouvernance.}
+Indicateurs simples~: nombre de changements par cycle, fraîcheur
+du dernier dossier, statut des watchers. Alerte si pas de run
+depuis plus de 26~heures.
+
+\section{Le modèle de données}
+
+Trois entités centrales, toutes immutables et validées par
+Pydantic~:
+
+\begin{description}
+  \item[\texttt{Evidence}.] Une preuve d'audit collectée. Porte
+    un UUID, un timestamp UTC, une source, une catégorie, une
+    référence métier (\emph{ex.} \texttt{nsg-dmz/Allow-HTTP}),
+    un payload structuré et son hash SHA-256.
+  \item[\texttt{Change}.] Un delta entre deux snapshots. Type
+    (créé, modifié, supprimé), référence à l'évidence avant et
+    après.
+  \item[\texttt{DossierSnapshot}.] L'instantané du dossier
+    produit. Version, date, nombre de preuves, hash du PDF,
+    hash du parent.
+\end{description}
+
+\section{Cartographie des preuves vers le cadre ANSSI}
+
+Chaque watcher déclare statiquement à quelles étapes du guide
+ANSSI ses preuves contribuent. Par exemple, le watcher NSG
+déclare~:
+
+\begin{lstlisting}[language=Python,caption={Mapping NSG vers le
+référentiel ANSSI / ISO.}]
+class NSGWatcher(BaseWatcher):
+    SCOPE = Scope(
+        anssi_steps=(4, 6),       # cartographie SI, mesures
+        iso_controls=("8.20", "8.21"),  # Networks security
+        asvs_controls=(),
+    )
+\end{lstlisting}
+
+C'est ce mapping qui permet au template Jinja2 de placer chaque
+preuve dans la bonne section du dossier final.
+
+\section{Ce que l'outil ne fait pas (encore)}
+
+Pour cadrer~:
+
+\begin{itemize}
+  \item Il ne fait pas d'analyse de risque automatique. EBIOS RM
+    reste manuel. L'outil alimente seulement les sections
+    techniques du dossier.
+  \item Il ne corrige rien. S'il détecte une dérive (NSG ouvert,
+    CVE critique), il la documente mais ne ferme pas la règle.
+    Une boucle de remédiation est une perspective future.
+  \item Il n'a pas d'interface web. Tout passe par CLI
+    (\texttt{homo-ci collect}, \texttt{homo-ci diff},
+    \texttt{homo-ci render}, \texttt{homo-ci publish}). Pour un
+    PFE, c'est suffisant~; pour un produit, il en faudrait une.
+\end{itemize}
