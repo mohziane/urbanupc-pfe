@@ -153,24 +153,113 @@ des scénarios joués et de leur fréquence. Mais ils valident que
 la chaîne (agent~$\to$~manager~$\to$~indexer~$\to$~dashboard) fonctionne et
 que les règles déclenchent comme attendu.
 
+\section{Active Response : du bruit à la réaction}
+\label{sec:active-response}
+
+Une fois les détections en place, l'étape suivante était de
+mesurer si Wazuh pouvait \emph{réagir} et pas seulement
+\emph{alerter}. On a activé le mécanisme \emph{Active Response}
+sur un scope contrôlé~: déclenchement uniquement sur les règles
+de brute force (SSH et applicatif), action \texttt{firewall-drop}
+(ajout d'une règle \texttt{iptables DROP} sur l'agent attaqué),
+durée du blocage 600~s puis débanissement automatique.
+
+\paragraph{Configuration.} Deux blocs \texttt{<active-response>}
+ajoutés à \texttt{/var/ossec/etc/ossec.conf} sur
+\texttt{vm-siem01}~:
+
+\begin{lstlisting}[language=XML,caption={Réponse active sur
+brute force SSH et applicatif.}]
+<active-response>
+  <command>firewall-drop</command>
+  <location>local</location>
+  <rules_id>5712</rules_id>   <!-- SSH brute force built-in -->
+  <timeout>600</timeout>
+</active-response>
+
+<active-response>
+  <command>firewall-drop</command>
+  <location>local</location>
+  <rules_id>100302</rules_id>  <!-- login brute force apps -->
+  <timeout>600</timeout>
+</active-response>
+\end{lstlisting}
+
+\paragraph{Scénario de test.} Depuis le manager (qui partage le
+réseau privé Azure avec \texttt{vm-web01}), 12 tentatives SSH
+avec un utilisateur inexistant (\texttt{rootbf}) et un mot de
+passe erroné, lancées en rafale. La règle 5712 (built-in Wazuh)
+déclenche à 8~échecs en moins de 120~s, niveau~10.
+
+\paragraph{Chronométrage observé.}
+
+\begin{table}[h]
+\centering
+\caption{Latence détection $\to$ blocage SSH brute force (mesure
+unique, 16~mai~2026).}
+\label{tab:active-response}
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Étape} & \textbf{Horodatage UTC} & \textbf{$\Delta$ depuis $t_0$} \\
+\midrule
+1\textsuperscript{re} tentative SSH ($t_0$) & 09:47:47.799 & 0\,s \\
+8\textsuperscript{e} tentative (seuil 5712) & 09:47:48.360 & 0,56\,s \\
+Règle 5712 déclenchée au manager & 09:47:50.254 & \textbf{2,45\,s} \\
+\texttt{firewall-drop} exécuté sur web01 & 09:47:50 & $\sim$2,5\,s \\
+Sonde TCP en \emph{timeout} (blocage confirmé) & 09:47:55+ & bloqué \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Vérification côté \texttt{vm-web01}~:
+
+\begin{lstlisting}[language=bash,caption={État iptables après
+déclenchement.}]
+$ sudo iptables -L INPUT -n --line-numbers
+Chain INPUT (policy ACCEPT)
+num  target  prot  source       destination
+1    DROP    all   10.0.3.10    0.0.0.0/0
+\end{lstlisting}
+
+La règle disparaît automatiquement après 600~s. Le journal
+\texttt{/var/ossec/logs/active-responses.log} sur l'agent
+contient le payload JSON complet de l'alerte qui a déclenché
+l'action (rule~id, MITRE T1110, srcip, timestamp), ce qui
+fournit une preuve auditable pour HOMO-CI.
+
+\paragraph{Périmètre volontairement restreint.} L'Active Response
+est limitée à deux règles de brute force. On n'a pas activé
+\texttt{disable-account} (qui désactive le compte ciblé) ni
+\texttt{host-deny} (entrée \texttt{/etc/hosts.deny}), pour
+éviter qu'une fausse alerte ne bloque un opérateur légitime
+pendant les tests. C'est un choix conservateur~: en production
+sur un vrai ENT, on déciderait du périmètre en concertation avec
+le RSSI.
+
 \section{Ce qu'il reste à faire côté SOC}
 
 Pour rester honnête sur le périmètre~:
 
 \begin{itemize}
-  \item Pas de tuning avancé des règles~: il y a probablement
-    des faux positifs qu'on n'a pas filtrés.
-  \item Pas d'enrichissement avec des IOC externes (MISP,
-    threat intel)~: les indicateurs viennent uniquement de la
-    base Wazuh.
-  \item Pas de réponse automatique (\emph{Active Response})
-    activée, pour ne pas casser le lab pendant les tests.
+  \item \textbf{Pas de tuning avancé des règles}~: il y a
+    probablement des faux positifs sur les 927~alertes mesurées
+    qu'on n'a pas filtrés. Un vrai déploiement passerait par une
+    phase de \emph{baselining} et l'écriture d'exceptions ciblées
+    (rule \texttt{<if\_sid>} avec \texttt{<options>no\_full\_log</options>}
+    pour les sources connues).
+  \item \textbf{Pas d'enrichissement avec des IOC externes}~:
+    MISP, OpenCTI, ou des feeds publics (URLhaus, OTX) seraient
+    branchés via le module \texttt{integrator} de Wazuh. C'est
+    une perspective documentée dans le chapitre~\ref{ch:limites},
+    pas un blocage technique.
 \end{itemize}
 
 \begin{takeaway}
 Le SOC du lab est volontairement simple~: Wazuh 4.9.2 all-in-one,
-deux agents, règles built-in + une dizaine de règles custom.
-C'est suffisant pour générer des preuves d'audit
-exploitables par HOMO-CI (état des agents, règles actives,
-nombre d'alertes par catégorie).
+deux agents, règles built-in + une dizaine de règles custom,
+Active Response activée sur les brute force. C'est suffisant
+pour générer des preuves d'audit exploitables par HOMO-CI (état
+des agents, règles actives, alertes par catégorie, et désormais
+événements d'\emph{Active Response} datés).
 \end{takeaway}

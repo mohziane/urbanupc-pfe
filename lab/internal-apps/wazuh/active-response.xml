@@ -1,0 +1,52 @@
+<!--
+  Wazuh Active Response - SSH brute force auto-blocking
+
+  À insérer dans /var/ossec/etc/ossec.conf sur vm-siem01,
+  entre les sections <ossec_config> existantes.
+
+  Périmètre : déclenchement sur vm-web01 uniquement (agent 001 par défaut).
+  Durée du blocage : 600s (10 minutes), refresh automatique si la brute
+  force continue.
+
+  Le binaire firewall-drop est livré avec wazuh-agent (>=4.0) dans
+  /var/ossec/active-response/bin/. Il utilise iptables sous Linux.
+-->
+
+<ossec_config>
+
+  <!--
+    Commande : firewall-drop (built-in Wazuh).
+    Bloque l'IP source via iptables -I INPUT.
+  -->
+  <command>
+    <name>firewall-drop</name>
+    <executable>firewall-drop</executable>
+    <timeout_allowed>yes</timeout_allowed>
+  </command>
+
+  <!--
+    Réponse active n°1 : SSH brute force (rule 5712 - built-in Wazuh)
+    Level 10, déclenche quand 8 échecs SSH en 120s depuis la même IP.
+    Action: drop sur l'agent qui a vu l'attaque (web01).
+    Durée: 600s puis débloque automatiquement.
+  -->
+  <active-response>
+    <command>firewall-drop</command>
+    <location>local</location>
+    <rules_id>5712</rules_id>
+    <timeout>600</timeout>
+  </active-response>
+
+  <!--
+    Réponse active n°2 : brute force sur les apps internes (rule 100302)
+    Level 10, déclenche quand 5 échecs de login app en 120s depuis la
+    même IP.
+  -->
+  <active-response>
+    <command>firewall-drop</command>
+    <location>local</location>
+    <rules_id>100302</rules_id>
+    <timeout>600</timeout>
+  </active-response>
+
+</ossec_config>
