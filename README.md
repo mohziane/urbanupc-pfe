@@ -24,15 +24,6 @@ urbanupc-pfe/
 
 Chaque dossier contient son propre `README.md` détaillé.
 
-## Démarrage rapide
-
-### Compiler le mémoire
-
-```bash
-cd memoire
-make
-open memoire.pdf
-```
 
 ### Déployer le lab
 
@@ -66,7 +57,7 @@ make pipeline
 
 ## Coût
 
-Sous 275 € de crédit étudiant Azure pour les trois semaines de mesure.
+Sous 100 € de crédit étudiant Azure pour les trois semaines de mesure.
 
 ## Auteur
 
