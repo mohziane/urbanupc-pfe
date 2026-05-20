@@ -38,10 +38,10 @@ open memoire.pdf
 
 ```bash
 cd lab/infra
-# Renseigner les variables Azure (subscription, RG, location)
-./deploy-vm-web01.sh
-./deploy-vm-dc01.sh
-./deploy-vm-siem01.sh
+# Renseigner les variables Azure (subscription, RG, location) puis :
+./azure-deploy.sh            # Crée RG, VNet, 3 subnets, 3 NSG, 3 VMs
+# Les setup spécifiques par VM sont injectés au déploiement via cloud-init
+# ou rejoués manuellement : vm-web01-setup.sh, vm-siem01-setup.sh, vm-dc01-setup.ps1
 ```
 
 ### Lancer un cycle HOMO-CI
@@ -50,18 +50,19 @@ cd lab/infra
 cd pipeline
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-make pipeline-run
-# Sortie : build/dossier-AAAAMMJJ-HHMMSS.pdf
+make pipeline
+# Sortie : build/dossier-AAAAMMJJ-HHMMSS.pdf (signé CMS + horodaté RFC 3161)
 ```
 
 ## Stack technique
 
 - **Infra** : Azure (RG-PFE-SOC, swedencentral), 3 VMs Linux/Windows, NSG
 - **SOC** : Wazuh 4.9.2 all-in-one (manager + indexer + dashboard)
-- **AD** : Active Directory `corpnet.local`, ~20 utilisateurs
-- **Applis** : PHP (CorpNet, vulnérable), Node.js/Express (MaFormation, MaCandidature)
+- **AD** : Active Directory `corpnet.local`, 7 utilisateurs métier (6 OUs)
+- **Applis** : PHP (CorpNet, vulnérable XSS/SQLi/IDOR), Node.js/Express (MaFormation, MaCandidature)
 - **Pipeline** : Python 3.11, Pydantic v2, Click, SQLite, JSONL, Jinja2, WeasyPrint
-- **CI** : GitHub Actions (cycle nightly, 03h00 UTC)
+- **Scellement** : SHA-256 chaînée + signature CMS (CA HOMO-CI) + horodatage RFC 3161 (FreeTSA)
+- **CI** : GitHub Actions (cycle nightly, 22h00 UTC)
 
 ## Coût
 
@@ -69,8 +70,9 @@ Sous 275 € de crédit étudiant Azure pour les trois semaines de mesure.
 
 ## Auteur
 
-Mohamed Ziane Bouziane — `mohziane02@gmail.com`
-Encadrement : Université Paris Cité.
+Mohamed Yassine Ziane Berroudja — `mohziane02@gmail.com`
+Encadrement : Université Paris Cité (Lyes Khoukhi, tuteur universitaire ;
+Arnaud Lehnen, tuteur professionnel).
 
 ## Licence
 

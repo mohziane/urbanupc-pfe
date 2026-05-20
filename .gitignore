@@ -64,3 +64,20 @@ ebios-rm/build/
 # Caches divers
 .coverage
 htmlcov/
+
+# HOMO-CI : état runtime local (régénérable par `make pipeline`)
+# La CA est régénérée par ensure_ca(), evidence/snapshots par les watchers.
+# Aucun de ces fichiers ne doit fuiter (clés privées + données d'exécution).
+pipeline/.homo-ci/ca/
+pipeline/.homo-ci/tsa/
+pipeline/.homo-ci/evidence/*.db
+pipeline/.homo-ci/evidence/*.db-journal
+pipeline/.homo-ci/evidence/trail/
+pipeline/.homo-ci/snapshots/
+pipeline/build/
+pipeline/dist/
+
+# Artefacts cryptographiques de signature
+*.p7s
+*.tsq
+*.tsr

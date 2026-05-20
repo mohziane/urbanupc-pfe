@@ -90,7 +90,12 @@ if ! dpkg -l | grep -q wazuh-agent; then
         > /etc/apt/sources.list.d/wazuh.list
     apt-get update -qq
 
-    WAZUH_MANAGER="$WAZUH_MANAGER_IP" apt-get install -y -qq wazuh-agent
+    # Pin explicite : le manager all-in-one est en 4.9.2 (voir vm-siem01-setup.sh).
+    # Si on laisse APT prendre la dernière 4.9.x publiée, l'agent peut atterrir en
+    # 4.10.x et le manager refuse l'enrôlement. Le pin est donc structurant.
+    WAZUH_AGENT_VERSION="4.9.2-1"
+    WAZUH_MANAGER="$WAZUH_MANAGER_IP" apt-get install -y -qq \
+        "wazuh-agent=${WAZUH_AGENT_VERSION}"
 
     # Config : pointer vers le manager
     sed -i "s|<address>MANAGER_IP</address>|<address>${WAZUH_MANAGER_IP}</address>|g" \

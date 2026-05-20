@@ -122,9 +122,15 @@ $wazuhSvc = Get-Service -Name WazuhSvc -ErrorAction SilentlyContinue
 if (-not $wazuhSvc) {
     $wazuhMSI = "$env:TEMP\wazuh-agent.msi"
 
-    Write-Host "  Telechargement de l'agent Wazuh..."
+    # Pin explicite : aligner avec le manager all-in-one (4.9.2).
+    # Sans pin, on récupère le dernier MSI publié sur le repo 4.x
+    # (ex. 4.10.x) et l'enrôlement échoue silencieusement.
+    $WazuhAgentVersion = "4.9.2-1"
+    $WazuhAgentMsi = "https://packages.wazuh.com/4.x/windows/wazuh-agent-$WazuhAgentVersion.msi"
+
+    Write-Host "  Telechargement de l'agent Wazuh ($WazuhAgentVersion)..."
     Invoke-WebRequest `
-        -Uri "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.9.0-1.msi" `
+        -Uri $WazuhAgentMsi `
         -OutFile $wazuhMSI
 
     Write-Host "  Installation..."
