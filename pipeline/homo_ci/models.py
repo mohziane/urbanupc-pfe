@@ -41,10 +41,14 @@ class SourceType(str, Enum):
     CVE = "wc_cve"
     AD = "wc_ad"
     SIEM = "wc_siem"
+    WAZUH = "wc_wazuh"
     DOCKER = "wc_docker"
     SAST = "wc_sast"
     DEPS = "wc_deps"
     ASVS = "wc_asvs"
+    PACS = "wc_pacs"
+    KRI = "wc_kri"
+    COMPLIANCE = "wc_compliance"
     MANUAL = "manual"
 
 
@@ -62,6 +66,12 @@ class Category(str, Enum):
     ACCOUNT = "account"
     RULE = "rule"
     SERVICE = "service"
+    AGENT = "agent"
+    ALERT = "alert"
+    AD_OBJECT = "ad_object"
+    PACS_ACTION = "pacs_action"
+    KRI = "kri"
+    COMPLIANCE = "compliance"
     SAST = "sast"
     DEP = "dep"
     ASVS = "asvs"
@@ -262,5 +272,48 @@ class DossierSnapshot(BaseModel):
     parent_hash: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$|^$")
     change_summary: ChangeSummary = Field(default_factory=ChangeSummary)
     signature: str | None = Field(
-        default=None, description="Signature GPG détachée ou hash chain."
+        default=None,
+        description="SHA-256 d'intégrité chaînée (pdf_hash || parent_hash || version).",
+    )
+
+    # ─── Horodatage RFC 3161 (TSA tierce) ────────────────────────────
+    # Champs renseignés si une autorité d'horodatage a contresigné le
+    # PDF. La présence de tsa_tsr_path implique l'existence du jeton de
+    # réponse TSA sur disque (.tsr) ainsi que les certificats CA / TSA
+    # utilisés pour la vérification.
+    tsa_provider: str | None = Field(
+        default=None,
+        description="URL de la TSA ayant délivré l'horodatage (RFC 3161).",
+    )
+    tsa_tsr_path: str | None = Field(
+        default=None,
+        description="Chemin du jeton de réponse TSA (.tsr) sur disque.",
+    )
+    tsa_timestamp: datetime | None = Field(
+        default=None,
+        description="Horodatage UTC certifié par la TSA.",
+    )
+    tsa_serial: str | None = Field(
+        default=None,
+        description="Numéro de série du jeton délivré par la TSA.",
+    )
+
+    # ─── Signature CMS / CAdES (CA interne HOMO-CI) ──────────────────
+    # Signature cryptographique détachée du PDF, émise par un
+    # certificat X.509 lui-même issu de la CA HOMO-CI (cf. ca.py).
+    cms_signature_path: str | None = Field(
+        default=None,
+        description="Chemin du fichier .p7s (signature CMS détachée).",
+    )
+    cms_signer_subject: str | None = Field(
+        default=None,
+        description="Sujet X.509 du certificat signataire.",
+    )
+    cms_signer_serial: str | None = Field(
+        default=None,
+        description="Numéro de série du certificat signataire.",
+    )
+    cms_signer_fingerprint: str | None = Field(
+        default=None,
+        description="Empreinte SHA-256 du certificat signataire.",
     )

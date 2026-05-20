@@ -9,15 +9,51 @@ l'itération 1).
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from .models import Category
+from .models import Category, SourceType
 from .storage import EvidenceStore
 
 logger = logging.getLogger(__name__)
+
+
+# Statuts possibles d'un dossier généré. Pilote l'affichage du
+# bandeau "VERSION DE TRAVAIL" en pièce de garde et le marquage de
+# chaque page. La valeur par défaut est 'draft' : un dossier sans
+# choix explicite reste prudent (« non homologatoire »).
+_STATUSES = {
+    "draft": {
+        "code": "draft",
+        "label": "Version de travail",
+        "banner": "VERSION DE TRAVAIL — NON HOMOLOGATOIRE",
+        "disclaimer": (
+            "Ce document est produit dans le cadre d'un projet de fin "
+            "d'études. La décision d'homologation pages 9.3 et 9.4 ne "
+            "peut être signée que par un AQSSI désigné par "
+            "l'établissement homologuant, après examen indépendant."
+        ),
+    },
+    "reviewed": {
+        "code": "reviewed",
+        "label": "Soumis à revue",
+        "banner": "SOUMIS À REVUE — EN ATTENTE DE DÉCISION AQSSI",
+        "disclaimer": (
+            "Ce document a été revu par le RSSI et est prêt à être "
+            "examiné par le comité d'homologation. Il n'engage pas "
+            "encore l'établissement."
+        ),
+    },
+    "final": {
+        "code": "final",
+        "label": "Version homologuée",
+        "banner": "",
+        "disclaimer": "",
+    },
+}
 
 
 class DossierRenderer:
@@ -84,9 +120,11 @@ class DossierRenderer:
         """Construit le contexte d'injection pour les templates."""
         all_evidence = self.store.list_all()
         by_category: dict[str, list] = {}
+        by_source: dict[str, list] = {}
         active_sources: set[str] = set()
         for ev in all_evidence:
             by_category.setdefault(ev.category.value, []).append(ev)
+            by_source.setdefault(ev.source.value, []).append(ev)
             active_sources.add(ev.source.value)
 
         nsg_rules = sorted(
@@ -104,12 +142,90 @@ class DossierRenderer:
             ),
         )
 
+        # ── Sorties dérivées des nouveaux watchers ──────────────────
+        wazuh_agents = sorted(
+            (ev.payload for ev in by_source.get(SourceType.WAZUH.value, [])
+             if ev.category == Category.AGENT),
+            key=lambda p: str(p.get("agent_id", "")),
+        )
+        wazuh_rules_files = sorted(
+            (ev.payload for ev in by_source.get(SourceType.WAZUH.value, [])
+             if ev.category == Category.RULE),
+            key=lambda p: str(p.get("file", "")),
+        )
+        wazuh_custom_rules_total = sum(
+            int(p.get("rules_count", 0)) for p in wazuh_rules_files
+        )
+        wazuh_ar = next(
+            (ev.payload for ev in by_source.get(SourceType.WAZUH.value, [])
+             if ev.ref == "active-response::ossec.conf"),
+            None,
+        )
+        wazuh_top_rules = next(
+            (ev.payload for ev in by_source.get(SourceType.WAZUH.value, [])
+             if ev.ref in ("alerts::by_rule", "alerts::top_rules")),
+            None,
+        )
+        wazuh_by_level = next(
+            (ev.payload for ev in by_source.get(SourceType.WAZUH.value, [])
+             if ev.ref == "alerts::by_level"),
+            None,
+        )
+
+        ad_summary = next(
+            (ev.payload for ev in by_source.get(SourceType.AD.value, [])
+             if ev.category == Category.AD_OBJECT),
+            None,
+        )
+
+        pacs_actions = sorted(
+            (ev.payload for ev in by_source.get(SourceType.PACS.value, [])),
+            key=lambda p: (int(p.get("priorite", 9)), str(p.get("code", ""))),
+        )
+
+        kri_measures = {
+            ev.payload.get("code"): ev.payload
+            for ev in by_source.get(SourceType.KRI.value, [])
+        }
+
+        # ── Conformité regroupée par référentiel ────────────────────
+        compliance_controls = sorted(
+            (ev.payload for ev in by_source.get(SourceType.COMPLIANCE.value, [])),
+            key=lambda p: (p.get("referentiel", ""), str(p.get("control_id", ""))),
+        )
+        compliance_by_ref: dict[str, list] = {}
+        for c in compliance_controls:
+            compliance_by_ref.setdefault(c.get("referentiel", "?"), []).append(c)
+        compliance_stats: dict[str, dict[str, int]] = {}
+        for ref, ctrls in compliance_by_ref.items():
+            stats = {"conformant": 0, "partial": 0, "wip": 0,
+                     "non_conformant": 0, "non_applicable": 0, "total": len(ctrls)}
+            for c in ctrls:
+                stats[c.get("statut", "wip")] = stats.get(c.get("statut", "wip"), 0) + 1
+            compliance_stats[ref] = stats
+
+        status_code = os.environ.get("HOMO_CI_DOCUMENT_STATUS", "draft").lower()
+        document_status = _STATUSES.get(status_code, _STATUSES["draft"])
+
         dynamic_context = {
             "version": version,
+            "document_status": document_status,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "evidence_count": len(all_evidence),
             "nsg_rules": nsg_rules,
             "cve_findings": cve_findings,
+            "wazuh_agents": wazuh_agents,
+            "wazuh_rules_files": wazuh_rules_files,
+            "wazuh_custom_rules_total": wazuh_custom_rules_total,
+            "wazuh_ar": wazuh_ar,
+            "wazuh_top_rules": wazuh_top_rules,
+            "wazuh_by_level": wazuh_by_level,
+            "ad_summary": ad_summary,
+            "pacs_actions": pacs_actions,
+            "kri_measures": kri_measures,
+            "compliance_controls": compliance_controls,
+            "compliance_by_ref": compliance_by_ref,
+            "compliance_stats": compliance_stats,
             "categories_count": len(by_category),
             "active_sources": sorted(active_sources),
         }

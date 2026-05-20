@@ -1,0 +1,310 @@
+# Conformité aux référentiels — source de vérité.
+#
+# Lue par le watcher wc_compliance qui émet une Evidence par contrôle.
+# La distinction avec dossier_context.yaml (référentiels:) :
+#   - dossier_context.yaml contient la *liste des référentiels appliqués*
+#     (RGPD, RGS, NIS 2, ANSSI…) et leur couverture *globale* ;
+#   - compliance_status.yaml contient le *détail contrôle par contrôle*
+#     pour les référentiels techniques (OWASP ASVS L2, CIS Docker, ANSSI
+#     DAT-NT-17 AD) — c'est l'élément probant exigé par l'auditeur.
+#
+# Statut : conformant | partial | non_conformant | non_applicable | wip
+# Evidence_ref : pointeur vers une preuve (fichier, alerte, code, doc)
+
+# ════════════════════════════════════════════════════════════════
+# OWASP ASVS v4.0.3 — sélection L2 applicable aux apps internes
+# ════════════════════════════════════════════════════════════════
+asvs_l2:
+  scope: "Applications internes maformation + macandidature, hors Active Directory"
+  controles:
+    - id: V2.1.1
+      categorie: "Authentication — Password Security"
+      exigence: "Mots de passe de 12 caractères minimum"
+      statut: conformant
+      evidence_ref: "internal-apps/maformation/app/auth.py::PASSWORD_MIN_LENGTH=12"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V2.1.2
+      categorie: "Authentication — Password Security"
+      exigence: "Mots de passe jusqu'à 128 caractères acceptés"
+      statut: conformant
+      evidence_ref: "Test unitaire test_auth_password_max_length"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V2.1.7
+      categorie: "Authentication — Password Security"
+      exigence: "Mots de passe testés contre une liste de mots de passe compromis"
+      statut: non_conformant
+      evidence_ref: "PACS R8 (intégration HaveIBeenPwned API planifiée)"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V2.2.1
+      categorie: "Authentication — General Authenticator Requirements"
+      exigence: "Mécanismes anti brute force (lockout, rate limiting)"
+      statut: conformant
+      evidence_ref: "Wazuh rule 100302 + Active Response firewall-drop"
+      proprietaire: SOC
+      derniere_revue: "2026-05-16"
+
+    - id: V2.7.2
+      categorie: "Authentication — Out-of-Band Verifier"
+      exigence: "MFA pour comptes à privilège"
+      statut: non_conformant
+      evidence_ref: "PACS R8 — déploiement MFA TOTP planifié"
+      proprietaire: Identité
+      derniere_revue: "2026-05-15"
+
+    - id: V3.2.1
+      categorie: "Session Management"
+      exigence: "Identifiants de session générés par CSPRNG, ≥128 bits"
+      statut: conformant
+      evidence_ref: "JWT HS256 avec clé 256 bits (secrets/jwt.key)"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V3.3.1
+      categorie: "Session Management — Session Timeout"
+      exigence: "Sessions expirées après inactivité (≤30 min app sensible)"
+      statut: conformant
+      evidence_ref: "JWT exp=1800s configuré dans auth.py"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V4.1.1
+      categorie: "Access Control — General"
+      exigence: "Application impose le contrôle d'accès côté serveur"
+      statut: partial
+      evidence_ref: "IDOR identifié sur conversation_id (CVE plantée, R2 corrige côté docker, accès objet à durcir hors PFE)"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V5.1.3
+      categorie: "Validation — Input Validation"
+      exigence: "Validation positive (allow-list) sur les paramètres"
+      statut: conformant
+      evidence_ref: "Schémas Pydantic / validators sur endpoints maformation"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V5.3.3
+      categorie: "Validation — XSS"
+      exigence: "Échappement contextuel (HTML/JS/attr)"
+      statut: partial
+      evidence_ref: "XSS planté volontairement dans le chat AJAX (cf. commit 55365fd) — détection Wazuh rule 100231"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V5.3.4
+      categorie: "Validation — SQL Injection"
+      exigence: "Requêtes paramétrées exclusivement"
+      statut: conformant
+      evidence_ref: "ORM SQLAlchemy sur tous les accès BDD"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V7.1.1
+      categorie: "Cryptography — Data at Rest"
+      exigence: "Mots de passe stockés avec algorithme adaptatif"
+      statut: conformant
+      evidence_ref: "Argon2id (m=19456, t=2, p=1) configuré dans auth.py"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V8.3.4
+      categorie: "Data Protection — Sensitive Data"
+      exigence: "Données sensibles non journalisées en clair"
+      statut: conformant
+      evidence_ref: "Filtre redact_pii dans middleware logging"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V9.1.1
+      categorie: "Communication — Client Communications"
+      exigence: "TLS 1.2/1.3 sur tous les flux externes"
+      statut: conformant
+      evidence_ref: "nginx ssl_protocols TLSv1.2 TLSv1.3 (corpnet/nginx/conf.d/*.conf)"
+      proprietaire: Infra
+      derniere_revue: "2026-05-15"
+
+    - id: V10.3.2
+      categorie: "Malicious Code"
+      exigence: "Intégrité des dépendances vérifiée (lockfile, SBOM)"
+      statut: conformant
+      evidence_ref: "package-lock.json + Trivy scan (wc_cve, 52 CVE en cours de remédiation)"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-16"
+
+    - id: V12.3.1
+      categorie: "Files and Resources"
+      exigence: "Noms de fichier user-controlled assainis"
+      statut: conformant
+      evidence_ref: "secure_filename() sur uploads macandidature"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: V13.2.1
+      categorie: "API and Web Service — RESTful Web Service"
+      exigence: "Réponses API sans données serveur (stack, version)"
+      statut: conformant
+      evidence_ref: "Header Server stripped via nginx hide_server_tokens"
+      proprietaire: Infra
+      derniere_revue: "2026-05-15"
+
+    - id: V14.1.1
+      categorie: "Configuration"
+      exigence: "Configuration applicative versionnée et reproductible"
+      statut: conformant
+      evidence_ref: "docker-compose.yml + .env.example versionnés"
+      proprietaire: Infra
+      derniere_revue: "2026-05-15"
+
+    - id: V14.2.1
+      categorie: "Configuration — Dependency"
+      exigence: "Dépendances applicatives à jour ou justifiées"
+      statut: partial
+      evidence_ref: "52 CVE remontées par wc_cve, plan de remédiation PACS R3+"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-16"
+
+# ════════════════════════════════════════════════════════════════
+# CIS Docker Benchmark v1.6 — sélection contrôles critiques
+# ════════════════════════════════════════════════════════════════
+cis_docker:
+  scope: "Hôte Docker (vm-web01) + containers internal-apps"
+  controles:
+    - id: "1.1.1"
+      categorie: "Host Configuration"
+      exigence: "Partition séparée pour /var/lib/docker"
+      statut: non_applicable
+      evidence_ref: "Lab single-disk Azure ; non-applicable pour un poc"
+      proprietaire: Infra
+      derniere_revue: "2026-05-15"
+
+    - id: "2.1"
+      categorie: "Docker daemon"
+      exigence: "Run Docker daemon as non-root user (rootless)"
+      statut: non_conformant
+      evidence_ref: "Daemon root standard, rootless non déployé"
+      proprietaire: Infra
+      derniere_revue: "2026-05-15"
+
+    - id: "2.5"
+      categorie: "Docker daemon"
+      exigence: "TLS authentication pour daemon distant"
+      statut: non_applicable
+      evidence_ref: "Daemon non exposé en réseau"
+      proprietaire: Infra
+      derniere_revue: "2026-05-15"
+
+    - id: "4.1"
+      categorie: "Container Images"
+      exigence: "Containers exécutés en USER non-root"
+      statut: conformant
+      evidence_ref: "Dockerfile USER appuser sur maformation + macandidature"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: "4.6"
+      categorie: "Container Images"
+      exigence: "Healthcheck défini"
+      statut: conformant
+      evidence_ref: "HEALTHCHECK CMD curl -f http://localhost dans Dockerfiles"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: "5.4"
+      categorie: "Container Runtime"
+      exigence: "Conteneurs non privileged"
+      statut: conformant
+      evidence_ref: "docker-compose.yml sans privileged:true"
+      proprietaire: Infra
+      derniere_revue: "2026-05-15"
+
+    - id: "5.9"
+      categorie: "Container Runtime"
+      exigence: "Capacities Linux restreintes (drop ALL + cap_add explicite)"
+      statut: partial
+      evidence_ref: "cap_drop: ALL appliqué seulement sur macandidature"
+      proprietaire: Infra
+      derniere_revue: "2026-05-15"
+
+    - id: "5.10"
+      categorie: "Container Runtime"
+      exigence: "Memory usage limité"
+      statut: conformant
+      evidence_ref: "mem_limit 512M par service dans docker-compose"
+      proprietaire: Infra
+      derniere_revue: "2026-05-15"
+
+    - id: "5.12"
+      categorie: "Container Runtime"
+      exigence: "Filesystem racine en lecture seule"
+      statut: conformant
+      evidence_ref: "read_only:true + tmpfs sur maformation + macandidature (PACS R3 appliqué)"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+    - id: "5.31"
+      categorie: "Container Runtime"
+      exigence: "Socket Docker non monté dans containers"
+      statut: conformant
+      evidence_ref: "Volume /var/run/docker.sock supprimé (PACS R2 appliqué 15/05/2026)"
+      proprietaire: AppSec
+      derniere_revue: "2026-05-15"
+
+# ════════════════════════════════════════════════════════════════
+# ANSSI DAT-NT-17 — Recommandations Active Directory (sélection)
+# ════════════════════════════════════════════════════════════════
+anssi_dat_nt_17:
+  scope: "Domaine corpnet.local"
+  controles:
+    - id: "R1"
+      categorie: "Architecture"
+      exigence: "Tiering administratif (Tier 0 / 1 / 2)"
+      statut: non_conformant
+      evidence_ref: "Lab sans tiering, comptes admin pleins droits"
+      proprietaire: Identité
+      derniere_revue: "2026-05-15"
+
+    - id: "R10"
+      categorie: "Comptes privilégiés"
+      exigence: "Comptes de service sans SPN sur compte utilisateur"
+      statut: partial
+      evidence_ref: "svc.backup avec SPN identifié et révoqué (PACS R5.2 appliqué)"
+      proprietaire: Identité
+      derniere_revue: "2026-05-15"
+
+    - id: "R12"
+      categorie: "Comptes privilégiés"
+      exigence: "Pré-authentification Kerberos obligatoire"
+      statut: conformant
+      evidence_ref: "p.bernard restauré avec RequirePreAuth (PACS R5.4 appliqué)"
+      proprietaire: Identité
+      derniere_revue: "2026-05-15"
+
+    - id: "R20"
+      categorie: "Authentification"
+      exigence: "Politique de verrouillage de compte active"
+      statut: conformant
+      evidence_ref: "GPO 5 essais / 15 min (PACS R5.5 appliqué)"
+      proprietaire: Identité
+      derniere_revue: "2026-05-15"
+
+    - id: "R34"
+      categorie: "Protocoles"
+      exigence: "LDAPS (port 636) actif pour les liens applicatifs"
+      statut: wip
+      evidence_ref: "AD CS déployé, intégration applicative en cours (PACS R5.1)"
+      proprietaire: Identité
+      derniere_revue: "2026-05-15"
+
+    - id: "R47"
+      categorie: "Surveillance"
+      exigence: "Journalisation et corrélation des événements de sécurité"
+      statut: conformant
+      evidence_ref: "Wazuh agent + Sysmon sur vm-dc01 (wc_wazuh agent::002)"
+      proprietaire: SOC
+      derniere_revue: "2026-05-16"

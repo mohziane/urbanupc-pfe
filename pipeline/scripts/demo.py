@@ -175,10 +175,10 @@ def main() -> None:
          "package": "lodash", "installed_version": "4.17.20", "fixed_version": "4.17.21",
          "severity": "HIGH", "cvss_score": 7.4, "title": "Prototype pollution",
          "published": "2024-06-12"},
-        {"image": "internal-apps/macandidature:latest", "vulnerability_id": "CVE-2024-1234",
-         "package": "express", "installed_version": "4.18.0", "fixed_version": "4.21.0",
-         "severity": "MEDIUM", "cvss_score": 5.3, "title": "Open redirect",
-         "published": "2024-08-05"},
+        {"image": "internal-apps/macandidature:latest", "vulnerability_id": "CVE-2024-29041",
+         "package": "express", "installed_version": "4.18.0", "fixed_version": "4.19.2",
+         "severity": "MEDIUM", "cvss_score": 6.1, "title": "Open redirect via malformed URL",
+         "published": "2024-03-25"},
     ]
     inject_nsg(store, initial_nsg)
     inject_cve(store, initial_cves)

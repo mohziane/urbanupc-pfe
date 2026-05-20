@@ -1,0 +1,160 @@
+# PACS — Plan d'Amélioration Continue de la Sécurité
+#
+# Source de vérité des actions PACS. Lu par le watcher wc_pacs qui
+# émet une Evidence par action. La séparation avec dossier_context.yaml
+# évite que la PSSI et les actions du PACS soient mélangées : la
+# première décrit le cadre, le second l'état réel d'avancement.
+#
+# Format de date : ISO 8601 (YYYY-MM-DD).
+# Statut : one of {planned, in_progress, applied, blocked, dropped}.
+
+actions:
+  - code: R1
+    action: "Migration des applications internes vers vm-internal01 dédiée"
+    priorite: 2
+    effort_jh: 1.0
+    echeance: "2026-05-30"
+    statut: in_progress
+    statut_label: "En cours (quota Azure)"
+    last_update: "2026-05-15"
+    owner: "Infra"
+
+  - code: R2
+    action: "Suppression vulnérabilité Docker socket dans macandidature"
+    priorite: 1
+    effort_jh: 2.0
+    echeance: "2026-05-18"
+    statut: applied
+    statut_label: "Appliqué"
+    last_update: "2026-05-15"
+    owner: "AppSec"
+
+  - code: R3
+    action: "Read-only filesystem sur maformation_app (via migrator)"
+    priorite: 2
+    effort_jh: 1.5
+    echeance: "2026-05-22"
+    statut: applied
+    statut_label: "Appliqué"
+    last_update: "2026-05-15"
+    owner: "AppSec"
+
+  - code: R4
+    action: "Migration des secrets vers Azure Key Vault"
+    priorite: 4
+    effort_jh: 2.5
+    echeance: "2026-06-05"
+    statut: planned
+    statut_label: "Planifié"
+    last_update: "2026-05-15"
+    owner: "Infra"
+
+  - code: R5.1
+    action: "Activation LDAPS (port 636)"
+    priorite: 2
+    effort_jh: 1.0
+    echeance: "2026-05-22"
+    statut: in_progress
+    statut_label: "Infrastructure prête (AD CS requis pour app)"
+    last_update: "2026-05-15"
+    owner: "Identité"
+
+  - code: R5.2
+    action: "Révocation compte svc.backup"
+    priorite: 1
+    effort_jh: 0.5
+    echeance: "2026-05-18"
+    statut: applied
+    statut_label: "Appliqué"
+    last_update: "2026-05-15"
+    owner: "Identité"
+
+  - code: R5.3
+    action: "Rotation mot de passe soc.admin (32 chars)"
+    priorite: 1
+    effort_jh: 0.5
+    echeance: "2026-05-18"
+    statut: applied
+    statut_label: "Appliqué"
+    last_update: "2026-05-15"
+    owner: "Identité"
+
+  - code: R5.4
+    action: "Restauration RequirePreAuth sur p.bernard"
+    priorite: 1
+    effort_jh: 0.2
+    echeance: "2026-05-18"
+    statut: applied
+    statut_label: "Appliqué"
+    last_update: "2026-05-15"
+    owner: "Identité"
+
+  - code: R5.5
+    action: "Politique de verrouillage AD (5 essais / 15 min)"
+    priorite: 2
+    effort_jh: 0.5
+    echeance: "2026-05-22"
+    statut: applied
+    statut_label: "Appliqué"
+    last_update: "2026-05-15"
+    owner: "Identité"
+
+  - code: R6
+    action: "Activation Azure DDoS Protection Standard"
+    priorite: 3
+    effort_jh: 1.0
+    echeance: "2026-05-30"
+    statut: planned
+    statut_label: "Planifié"
+    last_update: "2026-05-15"
+    owner: "Infra"
+
+  - code: R7
+    action: "Procédure formelle d'off-boarding"
+    priorite: 2
+    effort_jh: 2.0
+    echeance: "2026-06-05"
+    statut: planned
+    statut_label: "Planifié"
+    last_update: "2026-05-15"
+    owner: "RH+Identité"
+
+  - code: R8
+    action: "MFA TOTP obligatoire pour comptes administrateurs et personnel"
+    priorite: 2
+    effort_jh: 3.0
+    echeance: "2026-06-15"
+    statut: planned
+    statut_label: "Planifié"
+    last_update: "2026-05-15"
+    owner: "Identité"
+
+  - code: R9
+    action: "Sauvegardes journalières des bases (avec test de restore mensuel)"
+    priorite: 3
+    effort_jh: 1.0
+    echeance: "2026-05-30"
+    statut: planned
+    statut_label: "Planifié"
+    last_update: "2026-05-15"
+    owner: "Infra"
+
+  - code: R10
+    action: "Active Response Wazuh (firewall-drop sur brute force SSH + apps)"
+    priorite: 2
+    effort_jh: 0.5
+    echeance: "2026-05-18"
+    statut: applied
+    statut_label: "Appliqué (latence 2,45 s mesurée)"
+    last_update: "2026-05-16"
+    owner: "SOC"
+
+  - code: R11
+    action: "Pipeline d'homologation continue (HOMO-CI v0.1)"
+    priorite: 4
+    effort_jh: 4.0
+    echeance: "2026-06-30"
+    statut: in_progress
+    statut_label: "Opérationnel (4 watchers actifs sur 8 prévus)"
+    last_update: "2026-05-16"
+    owner: "Risk Manager"

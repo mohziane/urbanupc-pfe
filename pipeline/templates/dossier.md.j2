@@ -6,9 +6,13 @@
 
 <div class="cover-page">
 
+{% if document_status and document_status.code != 'final' %}
+<div class="cover-draft-banner">{{ document_status.banner }}</div>
+{% endif %}
+
 <div class="cover-logo">{{ si.nom }} — Direction Cybersécurité</div>
 <div class="cover-classification">DIFFUSION RESTREINTE</div>
-<div class="cover-dossier-mark">Régénéré par HOMO-CI</div>
+<div class="cover-dossier-mark">Régénéré par HOMO-CI · {{ document_status.label if document_status else 'Version' }}</div>
 
 <div class="cover-title">Dossier d'Homologation<br>de Sécurité</div>
 
@@ -33,6 +37,10 @@ Document produit automatiquement par le pipeline HOMO-CI. Toute
 incohérence avec l'état réel du SI ouvre une <strong>dérive d'audit</strong>
 (modèle conceptuel <em>audit drift</em>, mémoire §4.1) et déclenche
 une alerte au RSSI dans les 24 heures.
+{% if document_status and document_status.code != 'final' %}
+<br><br>
+<strong>{{ document_status.banner }}</strong> — {{ document_status.disclaimer }}
+{% endif %}
 </div>
 
 </div>
@@ -105,7 +113,45 @@ l'homologation** du présent SI et s'engage à :
 
 # Pièce 2 — Cartographie du système d'information (étape 4)
 
+{% if cartographie %}
+## 2.1 Zones de confiance
+
+| Code | Zone | Niveau | Description |
+|:---:|---|:---:|---|
+{%- for z in cartographie.zones %}
+| {{ z.code }} | {{ z.nom }} | {{ z.niveau_confiance }} | {{ z.description }} |
+{%- endfor %}
+
+## 2.2 Composants applicatifs
+
+| Code | Composant | Zone | Hôte | Rôle | Données manipulées |
+|:---:|---|:---:|---|---|---|
+{%- for c in cartographie.composants %}
+| {{ c.code }} | {{ c.nom }} | {{ c.zone }} | {{ c.hote }} | {{ c.role }} | {{ c.donnees }} |
+{%- endfor %}
+
+## 2.3 Flux inter-composants
+
+Chaque flux est documenté avec sa justification métier et le
+contrôle de sécurité associé. Toute ouverture non listée doit
+faire l'objet d'une RFC (procédure P-CHG-001).
+
+| Code | Source | Destination | Protocole / port | Justification | Contrôle |
+|:---:|---|---|---|---|---|
+{%- for f in cartographie.flux %}
+| {{ f.code }} | {{ f.source }} | {{ f.destination }} | {{ f.protocole }} ({{ f.port }}) | {{ f.justification }} | {{ f.controle }} |
+{%- endfor %}
+
+## 2.4 Vue d'ensemble
+
+```
+{{ cartographie.schema_ascii }}
+```
+
+## 2.5 Cartographie fonctionnelle — populations utilisatrices
+{% else %}
 ## 2.1 Cartographie fonctionnelle — populations utilisatrices
+{% endif %}
 
 | Profil | Volume estimé | Données manipulées | Mode d'authentification |
 |---|---|---|---|
@@ -113,7 +159,7 @@ l'homologation** du présent SI et s'engage à :
 | {{ p.profil }} | {{ p.volume }} | {{ p.donnees }} | {{ p.authn }} |
 {%- endfor %}
 
-## 2.2 Inventaire des données traitées
+## 2.6 Inventaire des données traitées
 
 | Catégorie | Sensibilité | Volume | Rétention | Localisation |
 |---|---|---|---|---|
@@ -121,7 +167,7 @@ l'homologation** du présent SI et s'engage à :
 | {{ d.categorie }} | {{ d.sensibilite }} | {{ d.volume }} | {{ d.retention }} | {{ d.localisation }} |
 {%- endfor %}
 
-## 2.3 Topologie réseau et règles NSG (auto-collectées)
+## 2.7 Topologie réseau et règles NSG (auto-collectées)
 
 {% if nsg_rules %}
 **{{ nsg_rules | length }} règles** ont été collectées automatiquement
@@ -151,7 +197,60 @@ publiée par l'ANSSI en octobre 2018, identifie :
 - **{{ ebios.scenarios_strategiques }} scénarios stratégiques** ;
 - **{{ ebios.scenarios_operationnels }} scénarios opérationnels** modélisés.
 
-## 3.1 Évolution du niveau de risque global
+## 3.1 Valeurs métier (atelier 1)
+
+| Code | Valeur métier | Mission soutenue |
+|---|---|---|
+{%- for vm in ebios.valeurs_metier_liste %}
+| {{ vm.code }} | {{ vm.nom }} | {{ vm.mission }} |
+{%- endfor %}
+
+## 3.2 Sources de risque retenues (atelier 2)
+
+| Code | Désignation | Pertinence |
+|---|---|---|
+{%- for sr in ebios.sources_de_risque_liste %}
+| {{ sr.code }} | {{ sr.designation }} | {{ sr.pertinence }} |
+{%- endfor %}
+
+## 3.3 Objectifs visés (atelier 2)
+
+| Code | Objectif | Sources associées |
+|---|---|---|
+{%- for ov in ebios.objectifs_vises_liste %}
+| {{ ov.code }} | {{ ov.objectif }} | {{ ov.sr }} |
+{%- endfor %}
+
+## 3.4 Scénarios stratégiques (atelier 3)
+
+| Code | Libellé | SR → OV | Vrais. | Grav. | Niveau | Valeurs impactées |
+|:---:|---|:---:|:---:|:---:|:---:|---|
+{%- for ss in ebios.scenarios_strategiques_liste %}
+| {{ ss.code }} | {{ ss.libelle }} | {{ ss.sr }} → {{ ss.ov }} | {{ ss.vraisemblance }} | {{ ss.gravite }} | {{ ss.niveau }} | {{ ss.vm_impactees | join(', ') }} |
+{%- endfor %}
+
+## 3.5 Scénarios opérationnels (atelier 4)
+
+Chaque scénario opérationnel décline un scénario stratégique en une
+**chaîne d'actions élémentaires** mappée sur le référentiel
+MITRE ATT&CK v14.1. Pour chaque chaîne, la colonne *Niveau* exprime
+la cotation avant/après application du PACS (G × V).
+
+{% for so in ebios.scenarios_operationnels_liste %}
+### {{ so.code }} — {{ so.titre }}
+
+- **Stratégique parent :** {{ so.ss_parent }}.
+- **Chaîne ATT&CK :** {{ so.chaine }}.
+- **Vraisemblance :** {{ so.vraisemblance }} · **Gravité :** {{ so.gravite }}.
+- **Niveau de risque :** {{ so.niveau_avant_pacs }} → **{{ so.niveau_apres_pacs }}** après PACS{% if so.reduction_effective_compensatoire %} (réduction effective de {{ so.reduction_effective_compensatoire }} points apportée par les contrôles compensatoires, non comptabilisée car la vulnérabilité demeure ; cf. RR-1){% endif %}.
+{%- if so.note_pacs %}
+- **Note PACS :** {{ so.note_pacs }}
+{%- endif %}
+- **Couverture SOC :** {{ so.couverture_soc }}.
+
+{% endfor %}
+
+## 3.6 Évolution du niveau de risque global
 
 Avant application du Plan d'Amélioration Continue de la Sécurité
 (PACS), **{{ ebios.risques_critiques_avant_pacs }} scénarios**
@@ -159,7 +258,11 @@ Avant application du Plan d'Amélioration Continue de la Sécurité
 mesures prioritaires, **{{ ebios.risques_critiques_apres_pacs }}
 scénarios** demeurent au niveau critique.
 
-## 3.2 Registre des risques résiduels acceptés
+{% if ebios.risques_critiques_apres_pacs_note %}
+*{{ ebios.risques_critiques_apres_pacs_note }}*
+{% endif %}
+
+## 3.7 Registre des risques résiduels acceptés
 
 L'AQSSI prend acte des risques résiduels suivants et en accepte
 formellement la persistance, sous réserve des actions correctives
@@ -215,36 +318,167 @@ L'audit s'appuie sur les référentiels suivants :
 Posture retenue : **{{ audit.posture }}**.
 Nombre de scénarios testés : **{{ audit.scenarios_testes }}**.
 
-## 5.2 Synthèse des vulnérabilités CVE (auto-collectées)
+## 5.2 État du SOC Wazuh (auto-collecté par `wc_wazuh`)
+
+{% if wazuh_agents %}
+**Agents enrôlés :** {{ wazuh_agents | length }} (manager inclus).
+
+| ID | Nom | IP | Statut |
+|:---:|---|---|:---:|
+{%- for a in wazuh_agents %}
+| {{ a.agent_id }} | {{ a.name }} | {{ a.ip }} | {{ a.status }} |
+{%- endfor %}
+{% else %}
+*(Aucun agent Wazuh collecté — vérifier la disponibilité du watcher `wc_wazuh` (SSH vers `vm-siem01`).)*
+{% endif %}
+
+{% if wazuh_rules_files %}
+**Règles personnalisées :** {{ wazuh_custom_rules_total }} règles
+réparties sur {{ wazuh_rules_files | length }} fichier(s) sous
+`/var/ossec/etc/rules/`.
+
+| Fichier | Nombre de règles |
+|---|:---:|
+{%- for f in wazuh_rules_files %}
+| `{{ f.file }}` | {{ f.rules_count }} |
+{%- endfor %}
+{% endif %}
+
+{% if wazuh_ar %}
+**Active Response :** {{ 'activée' if wazuh_ar.enabled else 'inactive' }}
+— {{ wazuh_ar.blocks_declared }} bloc(s) `<active-response>` déclaré(s)
+dans `ossec.conf`{% if wazuh_ar.commands %} (commandes : {{ wazuh_ar.commands | join(', ') }}){% endif %}.
+La latence détection→blocage mesurée sur le scénario brute force SSH
+est de **2,45 s** (mesure unique du 16/05/2026, cf. mémoire §5).
+{% endif %}
+
+{% if wazuh_top_rules %}
+**Top des règles déclenchées** (échantillon : {{ wazuh_top_rules.total_sampled }} alertes
+lues sur les 5 premiers Mo de `alerts.json`, ≈ fenêtre 24 h) :
+
+| Rule ID | Nombre d'alertes |
+|:---:|:---:|
+{%- for t in wazuh_top_rules.top_rules %}
+| {{ t.rule_id }} | {{ t.count }} |
+{%- endfor %}
+{% endif %}
+
+{% if wazuh_by_level %}
+**Répartition par niveau de sévérité Wazuh** :
+{%- set crit = wazuh_by_level.critical_count %}
+{%- set high = wazuh_by_level.high_count %}
+
+- Niveau ≥ 12 (critique) : **{{ crit }}** alertes.
+- Niveau 10–11 (élevé) : **{{ high }}** alertes.
+- Total échantillonné : **{{ wazuh_by_level.total_sampled }}** alertes.
+
+{% endif %}
+
+## 5.3 État du domaine Active Directory (auto-collecté par `wc_ad`)
+
+{% if ad_summary %}
+| Indicateur | Valeur |
+|---|---|
+| Nom de domaine DNS | `{{ ad_summary.domain }}` |
+| NetBIOS | `{{ ad_summary.netbios }}` |
+| Niveau fonctionnel | {{ ad_summary.domain_mode }} |
+| Émulateur PDC | `{{ ad_summary.pdc_emulator }}` |
+| Contrôleurs de domaine | {{ ad_summary.domain_controllers | join(', ') }} |
+| Utilisateurs (total) | {{ ad_summary.users.total }} |
+| Utilisateurs activés | {{ ad_summary.users.enabled }} |
+| Utilisateurs désactivés | {{ ad_summary.users.disabled }} |
+| Ordinateurs | {{ ad_summary.computers_total }} |
+| Groupes | {{ ad_summary.groups_total }} |
+| Comptes *Domain Admins* | **{{ ad_summary.domain_admins_count }}** |
+| GPO | {{ ad_summary.gpos_total }} |
+{% else %}
+*(État AD non collecté pour ce cycle. Le watcher `wc_ad` est coûteux
+à exécuter et doit être activé explicitement avec
+`HOMO_CI_AD_ENABLED=1` et inclus dans la liste de watchers via
+`--include ad`.)*
+{% endif %}
+
+## 5.4 Synthèse des vulnérabilités CVE (auto-collectées par `wc_cve`)
 
 {% if cve_findings %}
-Le watcher `wc_cve` a identifié **{{ cve_findings | length }}
-vulnérabilités** sur les images Docker du périmètre.
+Le watcher `wc_cve` (Trivy {{ cve_findings | length }} preuve(s))
+a identifié les vulnérabilités suivantes sur les images Docker du
+périmètre. Pour la lisibilité, seules les 25 premières sont
+affichées, triées par sévérité décroissante.
 
 | CVE | Composant | Sévérité | CVSS | Statut |
 |---|---|:---:|:---:|---|
-{%- for c in cve_findings %}
+{%- for c in cve_findings[:25] %}
 | {{ c.payload.vulnerability_id }} | {{ c.payload.package }} {{ c.payload.installed_version }} | {{ c.payload.severity }} | {{ c.payload.cvss_score or 'n/a' }} | {{ 'PATCH → ' + c.payload.fixed_version if c.payload.fixed_version else 'AUCUN CORRECTIF' }} |
 {%- endfor %}
+{%- if cve_findings | length > 25 %}
+
+*(+{{ cve_findings | length - 25 }} CVE non affichées — voir le store
+de preuves complet.)*
+{% endif %}
 {% else %}
 *(Aucune CVE collectée — vérifier la disponibilité du watcher `wc_cve` (Trivy installé ?).)*
 {% endif %}
 
-## 5.3 Synthèse globale de l'audit
+## 5.5 Synthèse structurée de l'audit
 
-{{ audit.resultat_synthese }}.
+{% if audit.synthese %}
+### 5.5.1 Contexte
+
+{{ audit.synthese.contexte }}
+
+### 5.5.2 Constats majeurs
+
+{% for c in audit.synthese.constats_majeurs %}
+- {{ c }}
+{%- endfor %}
+
+### 5.5.3 Couverture par atelier EBIOS
+
+{% for c in audit.synthese.couverture_par_atelier %}
+- **{{ c.atelier }} :** {{ c.couverture }}. *Non rejoués :* {{ c.non_rejoues }}.
+{%- endfor %}
+
+### 5.5.4 Métriques clés
+
+{% for m in audit.synthese.metriques_cles %}
+- {{ m }}
+{%- endfor %}
+
+### 5.5.5 Limites de l'audit
+
+{% for l in audit.synthese.limites_audit %}
+- {{ l }}
+{%- endfor %}
+
+### 5.5.6 Recommandations majeures
+
+{% for r in audit.synthese.recommandations_majeures %}
+- {{ r }}
+{%- endfor %}
+{% endif %}
+
+**Synthèse résumée.** {{ audit.resultat_synthese }}
 
 # Pièce 6 — Mesures de sécurité retenues (étape 6, suite)
 
 ## 6.1 Plan d'Amélioration Continue de la Sécurité (PACS)
 
-| Code | Action | Prio. | Effort | Échéance | Statut |
-|:---:|---|:---:|:---:|:---:|---|
-{%- for a in pacs %}
-| {{ a.code }} | {{ a.action }} | {{ a.priorite }} | {{ a.effort_jh }} j-h | {{ a.echeance }} | {{ a.statut }} |
-{%- endfor %}
+Les actions PACS sont auto-collectées par le watcher `wc_pacs` depuis
+le fichier de suivi `config/pacs_status.yaml` (versionné dans le
+dépôt). Toute évolution de statut produit une trace `UPDATED` dans
+le journal du pipeline et alimente le KRI-10 (avancement PACS).
 
-## 6.2 Conformité aux référentiels
+| Code | Action | Prio. | Effort | Échéance | Responsable | Statut |
+|:---:|---|:---:|:---:|:---:|:---:|---|
+{%- for a in pacs_actions %}
+| {{ a.code }} | {{ a.action }} | {{ a.priorite }} | {{ a.effort_jh }} j-h | {{ a.echeance }} | {{ a.owner }} | {{ a.statut_label }} |
+{%- endfor %}
+{%- if not pacs_actions %}
+*(Aucune action PACS collectée — vérifier `config/pacs_status.yaml` et le watcher `wc_pacs`.)*
+{% endif %}
+
+## 6.2 Conformité aux référentiels — vue agrégée
 
 | Référentiel | Référence | Statut | Couverture |
 |---|---|---|---|
@@ -252,36 +486,117 @@ vulnérabilités** sur les images Docker du périmètre.
 | {{ r.nom }} | {{ r.reference }} | {{ r.statut }} | {{ r.couverture }} |
 {%- endfor %}
 
+## 6.3 Conformité détaillée — contrôle par contrôle (auto-collectée par `wc_compliance`)
+
+{% if compliance_controls %}
+La conformité technique est suivie contrôle par contrôle dans
+`config/compliance_status.yaml`. Toute évolution d'un statut
+produit un événement UPDATED dans le journal du pipeline. Pour
+chaque contrôle, la colonne *Preuve* pointe vers l'élément
+probant (fichier, alerte, commit, ticket PACS).
+
+{% for ref_key, ctrls in compliance_by_ref.items() %}
+### 6.3.{{ loop.index }} {{ ref_key | replace('_', ' ') | upper }}
+
+{%- set stats = compliance_stats.get(ref_key, {}) %}
+**Synthèse :** {{ stats.get('conformant', 0) }} conformes,
+{{ stats.get('partial', 0) }} partiels,
+{{ stats.get('wip', 0) }} en cours,
+{{ stats.get('non_conformant', 0) }} non conformes,
+{{ stats.get('non_applicable', 0) }} non applicables
+(sur {{ stats.get('total', 0) }} contrôles évalués).
+
+{%- set first = ctrls[0] %}
+*Périmètre évalué :* {{ first.scope or '—' }}.
+
+| Contrôle | Catégorie | Exigence | Statut | Preuve |
+|:---:|---|---|:---:|---|
+{%- for c in ctrls %}
+{%- if c.statut == 'conformant' %}{% set icon = '🟢' %}
+{%- elif c.statut == 'partial' %}{% set icon = '🟡' %}
+{%- elif c.statut == 'wip' %}{% set icon = '🔵' %}
+{%- elif c.statut == 'non_conformant' %}{% set icon = '🔴' %}
+{%- else %}{% set icon = '⚪' %}
+{%- endif %}
+| {{ c.control_id }} | {{ c.categorie }} | {{ c.exigence }} | {{ icon }} {{ c.statut }} | {{ c.evidence_ref }} |
+{%- endfor %}
+
+{% endfor %}
+{% else %}
+*(Aucun contrôle de conformité collecté — vérifier `config/compliance_status.yaml` et le watcher `wc_compliance`.)*
+{% endif %}
+
 # Pièce 7 — Procédures opérationnelles
 
-Les procédures suivantes encadrent l'exploitation quotidienne du SI :
+Les procédures opérationnelles encadrent l'exploitation quotidienne
+du SI. Chaque procédure est documentée selon le canevas suivant :
+*déclencheur, acteurs, étapes, livrables, indicateurs (KPI),
+fréquence, référentiel applicable*.
 
-1. **Gestion des incidents de sécurité** — détection (SOC, MTTD ≤ 5 s)
-   → qualification (15 min) → confinement → éradication →
-   recouvrement → leçons retenues. Notification CNIL dans les 72 h
-   pour les violations de données.
-2. **Gestion des accès** — workflow on-boarding documenté ;
-   off-boarding sous 24 h après cessation ; revue trimestrielle
-   des comptes inactifs.
-3. **Gestion des changements** — classification standard / normale /
-   majeure / urgente ; évaluation d'impact sécurité par le RSSI.
-4. **Gestion des sauvegardes** — sauvegardes quotidiennes, tests de
-   restauration trimestriels, RTO < 4 h, RPO < 24 h.
-5. **Revue des règles SIEM** — mensuelle ; *tuning* documenté ;
-   audit des règles sans déclenchement > 6 mois.
-6. **Notification CNIL** — procédure formelle DPO, délai 72 h.
-7. **Revue d'homologation** — à 3, 6 et 12 mois ; comité plénier ;
-   PV conservé 10 ans.
+{% if procedures %}
+{% for p in procedures %}
+## 7.{{ loop.index }} {{ p.code }} — {{ p.nom }}
+
+**Déclencheur.** {{ p.declencheur }}
+
+**Acteurs impliqués.** {{ p.acteurs | join(' · ') }}
+
+**Étapes du processus.**
+
+{% for e in p.etapes %}
+1. {{ e }}
+{%- endfor %}
+
+**Livrables.**
+
+{% for l in p.livrables %}
+- {{ l }}
+{%- endfor %}
+
+**Indicateurs (KPI).**
+
+{% for k in p.kpis %}
+- {{ k }}
+{%- endfor %}
+
+**Fréquence.** {{ p.frequence }}.
+**Référentiel applicable.** {{ p.referentiel }}.
+
+{% endfor %}
+{% else %}
+*(Aucune procédure documentée — vérifier le bloc `procedures:` dans `config/dossier_context.yaml`.)*
+{% endif %}
 
 # Pièce 8 — Tableau de bord de suivi (étape 9)
 
 ## 8.1 Indicateurs clés de risque (KRI)
 
-| Code | Indicateur | Seuil d'alerte | Fréquence | Responsable |
-|---|---|---|:---:|---|
+Pour chaque KRI, la colonne *Valeur courante* est alimentée par le
+watcher `wc_kri` à partir des preuves des autres watchers (Wazuh,
+CVE, PACS). Une mesure « **manuel** » indique que l'automatisation
+n'est pas (encore) en place — le suivi reste alors à la charge du
+responsable opérationnel.
+
+| Code | Indicateur | Seuil d'alerte | Valeur courante | Statut | Fréquence | Responsable |
+|---|---|---|---|:---:|:---:|---|
 {%- for k in kri %}
-| {{ k.code }} | {{ k.indicateur }} | {{ k.seuil }} | {{ k.frequence }} | {{ k.responsable }} |
+{%- set m = kri_measures.get(k.code) %}
+{%- if m and m.mesurable_auto %}
+{%- set val = (m.valeur | string) + ' ' + (m.unite or '') %}
+{%- set statut = '🔴 seuil franchi' if m.seuil_franchi else '🟢 sous seuil' %}
+{%- elif m %}
+{%- set val = 'manuel' %}
+{%- set statut = ('🟠 manuel — seuil franchi' if m.seuil_franchi else '🟠 manuel') %}
+{%- else %}
+{%- set val = 'n/a' %}
+{%- set statut = '—' %}
+{%- endif %}
+| {{ k.code }} | {{ k.indicateur }} | {{ k.seuil }} | {{ val }} | {{ statut }} | {{ k.frequence }} | {{ k.responsable }} |
 {%- endfor %}
+
+*Lecture : un seuil franchi (🔴) déclenche une revue exceptionnelle ;
+un KRI non automatisable (🟠) est suivi via un livrable manuel
+mensuel mentionné dans le PACS R8/R9/R11.*
 
 ## 8.2 Cycle de revue
 
@@ -338,12 +653,16 @@ présent dossier.
 
 - L'**analyse de risque** identifie {{ ebios.scenarios_operationnels }}
   scénarios opérationnels dont
-  {{ ebios.risques_critiques_apres_pacs }} demeurent au niveau
-  critique après application du PACS.
-- La **chaîne de détection** SIEM est opérationnelle et couvre
-  l'ensemble des scénarios identifiés.
-- Le **PACS** comprend {{ pacs | length }} actions, dont la majorité
-  est appliquée à la date du présent dossier.
+  {{ ebios.risques_critiques_apres_pacs }} demeure(nt) au niveau
+  critique après application du PACS — formellement accepté(s)
+  en registre des risques résiduels (RR-1).
+- La **chaîne de détection** SIEM est opérationnelle :
+  {{ wazuh_agents | length }} agent(s) actif(s),
+  {{ wazuh_custom_rules_total }} règle(s) personnalisée(s),
+  Active Response {{ 'activée' if (wazuh_ar and wazuh_ar.enabled) else 'inactive' }}.
+- Le **PACS** comprend {{ pacs_actions | length }} actions
+  {%- set applied_count = pacs_actions | selectattr('statut', 'equalto', 'applied') | list | length -%}
+  , dont {{ applied_count }} appliquée(s) à la date du présent dossier.
 
 ## 9.3 Décision
 
@@ -391,32 +710,107 @@ moment dans les cas énumérés en Pièce 8 §8.3.
 
 # Annexe A — Provenance et auditabilité du dossier
 
-## A.1 Chaîne de hash SHA-256
+## A.1 Intégrité chaînée (interne)
 
 Le présent dossier appartient à une **chaîne de snapshots
-versionnés** dont chaque maillon référence le SHA-256 du précédent.
-Cette chaîne constitue la **chain of custody** auditable du
-dispositif d'homologation continue.
-
-La signature de ce dossier est calculée selon :
-
-```
-signature = SHA-256( pdf_hash || parent_hash || version )
-```
-
-Vérification de la cohérence :
+versionnés** dont chaque maillon référence le SHA-256 du
+précédent. Cette chaîne constitue la *chain of custody* interne
+auditable du dispositif d'homologation continue. Elle prouve une
+**antériorité relative** entre versions, mais — étant produite
+localement — ne prouve rien quant à la date civile réelle.
 
 ```
-homo-ci verify
+intégrité = SHA-256( pdf_hash || parent_hash || version )
 ```
 
-## A.2 Méta-informations de génération
+## A.2 Signature CMS par certificat X.509 (CA HOMO-CI)
+
+Le PDF est signé en **CMS détaché** (PKCS#7, RFC 5652) par un
+certificat X.509 émis par la *Certificate Authority* interne du
+pipeline HOMO-CI. Le fichier de signature ``.p7s`` est stocké
+séparément du PDF et incorpore :
+
+- le certificat du signataire (Risk Manager du SI),
+- la chaîne intermédiaire jusqu'à la CA racine,
+- le condensat SHA-256 du PDF signé,
+- la signature RSA-2048+ du condensat avec la clé privée du
+  signataire,
+- les attributs CMS standards (date de signature, OID
+  ``contentType``, ``messageDigest``).
+
+| Aspect | Valeur retenue |
+|---|---|
+| Autorité de certification | `HOMO-CI Root CA` (auto-signée, RSA 4096, SHA-256, validité 5 ans) |
+| Certificat signataire | Risk Manager nommé du SI (RSA 4096, SHA-256, validité 1 an, EKU = ``emailProtection`` + ``1.3.6.1.5.5.7.3.36``) |
+| Format de la signature | CMS détachée DER (`.p7s`) RFC 5652 |
+| Algorithme d'imprint | SHA-256 |
+| Valeur juridique eIDAS | **Non qualifiée** au sens du règlement (UE) 910/2014. CA self-signed, non rattachée à un TSP qualifié |
+| Reconnaissance | Conventionnelle : l'AQSSI valide cette CA comme autorité émettrice reconnue pour le scellement des dossiers du SI |
+| Substitution prévue | Certificat émis par une AC publique (Certigna, ChamberSign, DocuSign) sans modification du code — seules les variables `HOMO_CI_CA_DIR`, `HOMO_CI_CA_SUBJECT`, `HOMO_CI_SIGNER_SUBJECT` changent |
+
+## A.3 Horodatage RFC 3161 (externe)
+
+Le SHA-256 du PDF est en outre soumis à une **Time Stamping
+Authority (TSA) RFC 3161** publique. La TSA contre-signe le
+couple ``(hash, timestamp)`` avec son certificat X.509 ; le jeton
+TSR retourné constitue une preuve **absolue** d'antériorité,
+opposable à un tiers à la date civile inscrite dans le jeton,
+tant que la TSA et son CA restent reconnus.
+
+| Aspect | Valeur retenue |
+|---|---|
+| TSA utilisée | `freetsa.org` (FreeTSA, Wuerzburg, DE) |
+| Algorithme d'imprint | SHA-256 |
+| Policy OID | `tsa_policy1` |
+| Format du jeton | RFC 3161 / CMS DER (`.tsr`) |
+| Valeur juridique eIDAS | **Non qualifiée** au sens du règlement (UE) 910/2014 |
+| Substitution prévue | Service qualifié (ex. Universign, Lex Persona) lors d'une homologation réelle ; l'implémentation HOMO-CI est identique, seuls l'URL TSA et les certificats changent (variables `HOMO_CI_TSA_URL`, `HOMO_CI_TSA_CA`, `HOMO_CI_TSA_CERT`) |
+
+## A.4 Vérification de bout en bout
+
+La commande ``homo-ci verify`` (implémentée dans
+`homo_ci/sign.py::verify_chain`) effectue quatre contrôles
+successifs :
+
+1. **Intégrité du PDF** — recalcul du SHA-256 de chaque PDF de la
+   chaîne et comparaison au ``pdf_hash`` enregistré dans le
+   snapshot.
+2. **Chaînage interne** — vérification que ``snap_{n+1}.parent_hash``
+   est égal à ``snap_n.pdf_hash``.
+3. **Signature CMS** — pour chaque snapshot doté d'un fichier
+   ``.p7s``, appel à ``openssl cms -verify`` avec la CA racine
+   HOMO-CI comme ancre de confiance. Vérifie l'authenticité du
+   condensat signé et la chaîne du certificat signataire.
+4. **Horodatage RFC 3161** — pour chaque snapshot doté d'un jeton
+   TSR, appel à ``openssl ts -verify`` avec les certificats CA
+   et TSA — vérifie la signature du jeton, la chaîne du
+   certificat TSA et l'imprint SHA-256 du PDF.
+
+Une sortie « ✓ Hash chain cohérente » confirme la validation des
+quatre contrôles sur l'ensemble de la chaîne.
+
+## A.5 Méta-informations de génération
 
 - **Cycle d'exécution :** {{ generated_at }} UTC
 - **Version :** {{ version }}
 - **Pipeline :** HOMO-CI v0.1
+- **Watchers actifs sur ce cycle :** {{ active_sources | join(', ') }}
 - **Total de preuves auto-collectées :** {{ evidence_count }}
 - **Catégories distinctes :** {{ categories_count }}
+
+## A.6 Statut des watchers (couverture d'automatisation)
+
+| Watcher | Description | Statut |
+|---|---|:---:|
+| `wc_nsg` | Règles NSG Azure (cartographie réseau) | {{ '✓' if 'wc_nsg' in active_sources else '—' }} |
+| `wc_cve` | Vulnérabilités Docker via Trivy | {{ '✓' if 'wc_cve' in active_sources else '—' }} |
+| `wc_wazuh` | Agents, règles, AR, alertes du SIEM | {{ '✓' if 'wc_wazuh' in active_sources else '—' }} |
+| `wc_ad` | Synthèse Active Directory (corpnet.local) | {{ '✓' if 'wc_ad' in active_sources else 'opt-in (HOMO_CI_AD_ENABLED)' }} |
+| `wc_pacs` | Actions PACS et statut courant | {{ '✓' if 'wc_pacs' in active_sources else '—' }} |
+| `wc_compliance` | Conformité ASVS L2 / CIS Docker / ANSSI DAT-NT-17 | {{ '✓' if 'wc_compliance' in active_sources else '—' }} |
+| `wc_kri` | Valeurs courantes des KRI | {{ '✓' if 'wc_kri' in active_sources else '—' }} |
+| `wc_docker` | Conformité CIS Docker dynamique (docker-bench-security) | perspective |
+| `wc_sast` | Analyse statique applicative | perspective |
 
 # Annexe B — Glossaire des sigles
 

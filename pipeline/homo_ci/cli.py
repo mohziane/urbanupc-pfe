@@ -54,12 +54,21 @@ def main(ctx: click.Context, log_level: str, root: Path) -> None:
     "--include",
     "watchers_filter",
     multiple=True,
-    default=("nsg", "cve"),
-    help="Watchers à exécuter (par défaut : nsg cve).",
+    default=("nsg", "cve", "wazuh", "pacs", "compliance", "kri"),
+    help=(
+        "Watchers à exécuter (par défaut : nsg cve wazuh pacs compliance kri). "
+        "Ajouter 'ad' pour interroger le DC via az run-command "
+        "(coûteux, exige HOMO_CI_AD_ENABLED=1)."
+    ),
 )
 @click.pass_context
 def collect(ctx: click.Context, watchers_filter: tuple[str, ...]) -> None:
-    """Exécute les watchers sélectionnés."""
+    """Exécute les watchers sélectionnés.
+
+    L'ordre d'exécution suit l'ordre des --include et est important :
+    wc_kri lit les preuves émises par les autres watchers, il doit
+    donc être placé en dernier (c'est le cas par défaut).
+    """
     store: EvidenceStore = ctx.obj["store"]
     watchers = _select_watchers(store, watchers_filter)
     results: list[WatcherResult] = []
@@ -122,16 +131,30 @@ def cmd_diff(ctx: click.Context, against: Path | None) -> None:
     show_default=True,
 )
 @click.option(
+    "--context",
+    "context_file",
+    type=click.Path(path_type=Path),
+    default=Path("config/dossier_context.yaml"),
+    show_default=True,
+    help="YAML de contexte statique (PSSI, populations, EBIOS…).",
+)
+@click.option(
     "--out",
     type=click.Path(path_type=Path),
     default=Path("build/dossier.md"),
     show_default=True,
 )
 @click.pass_context
-def render(ctx: click.Context, version_str: str, templates: Path, out: Path) -> None:
+def render(
+    ctx: click.Context,
+    version_str: str,
+    templates: Path,
+    context_file: Path,
+    out: Path,
+) -> None:
     """Rend le dossier d'homologation en Markdown."""
     store: EvidenceStore = ctx.obj["store"]
-    renderer = DossierRenderer(store, templates)
+    renderer = DossierRenderer(store, templates, context_file=context_file)
     md = renderer.render(version=version_str)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(md, encoding="utf-8")
@@ -218,11 +241,34 @@ def _select_watchers(store: EvidenceStore, filters: tuple[str, ...]) -> list[Bas
         if f == "nsg":
             from .watchers.wc_nsg import NSGWatcher
 
-            selected.append(NSGWatcher(store))
+            try:
+                selected.append(NSGWatcher(store))
+            except ValueError as exc:
+                console.print(f"[yellow]Watcher nsg ignoré : {exc}[/yellow]")
         elif f == "cve":
             from .watchers.wc_cve import CVEWatcher
 
             selected.append(CVEWatcher(store))
+        elif f == "wazuh":
+            from .watchers.wc_wazuh import WazuhWatcher
+
+            selected.append(WazuhWatcher(store))
+        elif f == "ad":
+            from .watchers.wc_ad import ADWatcher
+
+            selected.append(ADWatcher(store))
+        elif f == "pacs":
+            from .watchers.wc_pacs import PACSWatcher
+
+            selected.append(PACSWatcher(store))
+        elif f == "compliance":
+            from .watchers.wc_compliance import ComplianceWatcher
+
+            selected.append(ComplianceWatcher(store))
+        elif f == "kri":
+            from .watchers.wc_kri import KRIWatcher
+
+            selected.append(KRIWatcher(store))
         else:
             console.print(f"[yellow]Watcher inconnu : {f}[/yellow]")
     return selected

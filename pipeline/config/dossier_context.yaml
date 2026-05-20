@@ -31,7 +31,7 @@ perimetre:
     - "MaFormation — portail étudiant authentifié par LDAP"
     - "MaCandidature — espace candidat avec auth locale"
     - "Domaine Active Directory corpnet.local"
-    - "SOC Wazuh 4.9.2 + 11 règles de détection personnalisées"
+    - "SOC Wazuh 4.9.2 (manager, indexer, dashboard) + jeu de règles personnalisées"
   exclusions:
     - "Postes utilisateurs finaux (homologation distincte)"
     - "Infrastructure Microsoft Azure (couverte par certification fournisseur)"
@@ -61,39 +61,247 @@ demarche:
 # ════════════════════════════════════════════════════════════════
 # Étape 3 — Acteurs
 # ════════════════════════════════════════════════════════════════
+# Note pédagogique : ce dossier est produit dans le cadre d'un projet
+# de fin d'études en cybersécurité (Master 2, Université Paris Cité,
+# année 2025-2026). Les rôles d'AQSSI, DPO et autres autorités sont
+# « à pourvoir » au sens où ils nécessiteraient, pour une homologation
+# réelle, une désignation formelle par l'établissement. Le porteur de
+# la démarche et l'encadrement académique sont nommés ci-dessous.
 acteurs:
   - role: "AQSSI titulaire"
-    nom: "[À compléter]"
+    nom: "À pourvoir par l'établissement homologuant"
     fonction: "Autorité Qualifiée pour la Sécurité des SI"
     responsabilite: "Prononce la décision d'homologation, engage l'établissement"
   - role: "AQSSI suppléant"
-    nom: "[À compléter]"
-    fonction: "Continuité en cas d'absence"
+    nom: "À pourvoir par l'établissement homologuant"
+    fonction: "Continuité en cas d'absence de l'AQSSI titulaire"
     responsabilite: "Représente l'AQSSI titulaire"
   - role: "RSSI"
-    nom: "[À compléter]"
+    nom: "À pourvoir par l'établissement homologuant"
     fonction: "Responsable de la Sécurité des SI"
     responsabilite: "Conduit la démarche, garantit la qualité technique"
-  - role: "Risk Manager"
-    nom: "[À compléter — auteur du dossier]"
-    fonction: "Pilote de l'analyse de risque"
-    responsabilite: "Coordonne l'analyse, rédige le dossier, opère le pipeline HOMO-CI"
+  - role: "Risk Manager / Porteur de la démarche"
+    nom: "Mohamed Ziane — étudiant Master 2 Cybersécurité, UPC"
+    fonction: "Pilote de l'analyse de risque et de la chaîne HOMO-CI"
+    responsabilite: "Coordonne l'analyse EBIOS RM, rédige le dossier, opère et maintient le pipeline d'homologation continue"
+  - role: "Encadrant académique"
+    nom: "Directeur·trice de mémoire (Université Paris Cité)"
+    fonction: "Encadrement scientifique du PFE"
+    responsabilite: "Valide la démarche méthodologique, garantit la cohérence avec les attendus académiques et professionnels"
   - role: "DPO"
-    nom: "[À compléter]"
+    nom: "À pourvoir par l'établissement homologuant"
     fonction: "Délégué à la Protection des Données"
     responsabilite: "Valide les éléments relatifs aux données personnelles"
   - role: "Architecte SI"
-    nom: "[À compléter]"
+    nom: "À pourvoir par l'établissement homologuant"
     fonction: "Architecture du système d'information"
     responsabilite: "Valide l'inventaire des actifs et la cartographie"
   - role: "Responsable SOC"
-    nom: "[À compléter]"
+    nom: "À pourvoir par l'établissement homologuant"
     fonction: "Pilotage du SOC"
     responsabilite: "Valide les scénarios opérationnels et la couverture de détection"
 
 # ════════════════════════════════════════════════════════════════
 # Étape 4 — Cartographie (populations et données)
 # ════════════════════════════════════════════════════════════════
+
+# ── Cartographie applicative et flux ────────────────────────────
+cartographie:
+  zones:
+    - code: ZN-INET
+      nom: "Internet"
+      niveau_confiance: "Aucun"
+      description: "Réseau public ; toutes les sources sont hostiles par défaut."
+    - code: ZN-DMZ
+      nom: "DMZ — Sous-réseau dmz (10.0.1.0/24)"
+      niveau_confiance: "Faible"
+      description: "Composants exposés à Internet (reverse proxy + portails publics)."
+    - code: ZN-LAN
+      nom: "LAN — Sous-réseau lan (10.0.2.0/24)"
+      niveau_confiance: "Élevé"
+      description: "Contrôleur de domaine et services d'identité, non exposé à Internet."
+    - code: ZN-OOB
+      nom: "Supervision — Sous-réseau oob (10.0.3.0/24)"
+      niveau_confiance: "Élevé"
+      description: "SIEM Wazuh ; flux entrants uniquement depuis les agents."
+    - code: ZN-ADMIN
+      nom: "Admin externe (IP nominative)"
+      niveau_confiance: "Modéré"
+      description: "Poste d'administration nominatif (46.193.66.88) ; SSH/RDP autorisés."
+
+  composants:
+    - code: C-NGINX
+      nom: "nginx reverse proxy"
+      zone: ZN-DMZ
+      hote: vm-web01
+      role: "Terminaison TLS, routing vers maformation/macandidature/landing"
+      langage: "nginx (config déclarative)"
+      donnees: "Aucune persistance ; logs access/error chiffrés en repos"
+    - code: C-MAFORM
+      nom: "maformation (portail étudiant)"
+      zone: ZN-DMZ
+      hote: vm-web01 / Docker
+      role: "Authentification LDAP, accès notes, EDT, ressources"
+      langage: "Python Flask + SQLAlchemy"
+      donnees: "Notes, profils étudiants, documents"
+    - code: C-MACAND
+      nom: "macandidature (portail candidat)"
+      zone: ZN-DMZ
+      hote: vm-web01 / Docker
+      role: "Dépôt de dossier, pièces justificatives"
+      langage: "Node.js Express"
+      donnees: "Identité civile, CV, lettre, relevés"
+    - code: C-LANDING
+      nom: "Landing CorpNet (vitrine publique)"
+      zone: ZN-DMZ
+      hote: vm-web01 / Docker
+      role: "Pages publiques, news, contact"
+      langage: "HTML statique"
+      donnees: "Aucune"
+    - code: C-DBMAFORM
+      nom: "Base maformation_db"
+      zone: ZN-DMZ
+      hote: vm-web01 / Docker
+      role: "PostgreSQL, persistance applicative maformation"
+      langage: "PostgreSQL 15"
+      donnees: "Notes, identités, sessions"
+    - code: C-DBMACAND
+      nom: "Base macandidature_db"
+      zone: ZN-DMZ
+      hote: vm-web01 / Docker
+      role: "PostgreSQL, persistance applicative macandidature"
+      langage: "PostgreSQL 15"
+      donnees: "Dossiers candidats, pièces justificatives"
+    - code: C-AD
+      nom: "Active Directory corpnet.local"
+      zone: ZN-LAN
+      hote: vm-dc01
+      role: "Authentification, GPO, DNS interne"
+      langage: "Windows Server 2022 AD DS"
+      donnees: "Identifiants personnel et étudiants, secrets de service"
+    - code: C-WAZUH
+      nom: "Wazuh manager + indexer + dashboard"
+      zone: ZN-OOB
+      hote: vm-siem01
+      role: "Centralisation alertes, corrélation, Active Response"
+      langage: "Wazuh 4.9.2 + OpenSearch"
+      donnees: "Journaux d'audit, alertes, métriques"
+
+  flux:
+    - code: F-01
+      source: ZN-INET
+      destination: C-NGINX
+      protocole: "HTTPS"
+      port: 443
+      justification: "Accès public aux portails (nsg-dmz/Allow-HTTPS-Internet)"
+      controle: "TLS 1.2/1.3 ; règles Wazuh nginx 92xxx + custom 100211 (SQLi)"
+    - code: F-02
+      source: C-NGINX
+      destination: C-MAFORM
+      protocole: "HTTP"
+      port: 8001
+      justification: "Routing applicatif (interne au pod Docker)"
+      controle: "Réseau Docker isolé ; logs JSON ingérés par Wazuh"
+    - code: F-03
+      source: C-NGINX
+      destination: C-MACAND
+      protocole: "HTTP"
+      port: 8002
+      justification: "Routing applicatif"
+      controle: "Idem F-02"
+    - code: F-04
+      source: C-MAFORM
+      destination: C-AD
+      protocole: "LDAP (LDAPS planifié, PACS R5.1)"
+      port: 389
+      justification: "Authentification utilisateurs étudiants"
+      controle: "Compte de service nominatif sans privilège ; logs 4624 sur DC"
+    - code: F-05
+      source: C-MAFORM
+      destination: C-DBMAFORM
+      protocole: "PostgreSQL"
+      port: 5432
+      justification: "Persistance applicative"
+      controle: "Mot de passe en variable d'env ; bind 127.0.0.1 (Docker network)"
+    - code: F-06
+      source: C-MACAND
+      destination: C-DBMACAND
+      protocole: "PostgreSQL"
+      port: 5432
+      justification: "Persistance applicative"
+      controle: "Idem F-05"
+    - code: F-07
+      source: vm-web01
+      destination: C-WAZUH
+      protocole: "Wazuh agent (TCP 1514) + enroll (TCP 1515)"
+      port: "1514, 1515"
+      justification: "Envoi des logs vers le SIEM"
+      controle: "Authentification mutuelle par clé d'enrôlement"
+    - code: F-08
+      source: vm-dc01
+      destination: C-WAZUH
+      protocole: "Wazuh agent (TCP 1514) + enroll (TCP 1515)"
+      port: "1514, 1515"
+      justification: "Envoi des logs Windows / Security Event Log"
+      controle: "Idem F-07"
+    - code: F-09
+      source: ZN-ADMIN
+      destination: vm-web01
+      protocole: "SSH"
+      port: 22
+      justification: "Administration nominative depuis 46.193.66.88"
+      controle: "Allow-SSH-Admin (NSG) + rule 5712 Wazuh + Active Response firewall-drop"
+    - code: F-10
+      source: ZN-ADMIN
+      destination: vm-dc01
+      protocole: "RDP"
+      port: 3389
+      justification: "Administration AD"
+      controle: "Allow-RDP-Admin (NSG) + alertes 4625 Wazuh"
+    - code: F-11
+      source: vm-web01
+      destination: ZN-INET
+      protocole: "HTTPS"
+      port: 443
+      justification: "Mises à jour apt, packages npm/pip"
+      controle: "Sortant filtré ; pas de proxy en lab"
+
+  schema_ascii: |
+    ┌───────────────────────────────────────────────────────────────┐
+    │                          Internet (ZN-INET)                    │
+    └────────────────┬───────────────────────────────┬───────────────┘
+                     │ HTTPS:443                     │ SSH:22 / RDP:3389
+                     │ (F-01)                        │ (F-09, F-10)
+                     ▼                               ▼
+    ┌────────────────────────────┐      ┌───────────────────────────┐
+    │  DMZ — 10.0.1.0/24         │      │  Admin externe (nominal)  │
+    │  ┌──────────────────────┐  │      │  46.193.66.88             │
+    │  │  vm-web01            │  │      └───────────────────────────┘
+    │  │  ┌────────┐          │  │
+    │  │  │ nginx  │          │  │                  ┌───────────────┐
+    │  │  └───┬────┘          │  │                  │  Supervision  │
+    │  │      │ F-02/F-03     │  │                  │  10.0.3.0/24  │
+    │  │   ┌──▼────────────┐  │  │ F-07/F-08        │  vm-siem01    │
+    │  │   │ maformation   │  │  │   Wazuh agent    │  (ZN-OOB)     │
+    │  │   │ macandidature │──┼──┼──────────────────┤               │
+    │  │   │ landing       │  │  │                  └───────▲───────┘
+    │  │   └──┬───────────┬┘  │  │                          │
+    │  │ F-05 │           │ F-06                            │ F-08
+    │  │   ┌──▼───┐  ┌────▼───┐│                            │
+    │  │   │ DB   │  │ DB     ││                            │
+    │  │   │maform│  │macand  ││                            │
+    │  │   └──────┘  └────────┘│                            │
+    │  └─────────┬─────────────┘                            │
+    └────────────┼──────────────────────────────────────────┼─────┘
+                 │ F-04 LDAP:389                            │
+                 ▼                                          │
+    ┌────────────────────────────┐                          │
+    │  LAN — 10.0.2.0/24         │                          │
+    │  vm-dc01                   ├──────────────────────────┘
+    │  Active Directory          │
+    │  corpnet.local             │
+    └────────────────────────────┘
+
 populations:
   - profil: "Visiteur anonyme"
     volume: "Très élevé (variable)"
@@ -157,23 +365,246 @@ ebios:
   scenarios_strategiques: 6
   scenarios_operationnels: 9
   risques_critiques_avant_pacs: 2
-  risques_critiques_apres_pacs: 0
+  # SO1 reste coté 12 après PACS car la CVE-2021-41773 est conservée
+  # (cf. RR-1). Les contrôles compensatoires apportent une réduction
+  # effective évaluée à -6 points mais ne ferment pas le risque.
+  # L'AQSSI accepte formellement ce risque résiduel.
+  risques_critiques_apres_pacs: 1
+  risques_critiques_apres_pacs_note: "SO1 demeure coté 12 (CVE-2021-41773 conservée). Réduction effective de 12 à 6 par contrôles compensatoires (détection Wazuh + AR + supervision 24×7), formellement reconnue en RR-1."
+
+  # ── Valeurs métier (atelier 1) ────────────────────────────────
+  valeurs_metier_liste:
+    - code: VM1
+      nom: "Service de candidature en ligne"
+      mission: "Permettre aux candidats de déposer un dossier en période de campagne"
+    - code: VM2
+      nom: "Continuité de l'année universitaire"
+      mission: "Garantir l'accès aux notes, EDT, ressources pédagogiques pour 10 000 étudiants"
+    - code: VM3
+      nom: "Intégrité des résultats académiques"
+      mission: "Garantir la non-altération des notes et diplômes"
+    - code: VM4
+      nom: "Confidentialité des dossiers personnels"
+      mission: "Protéger l'identité et le parcours de chaque étudiant/candidat (RGPD)"
+    - code: VM5
+      nom: "Réputation de l'établissement"
+      mission: "Protéger l'image vis-à-vis des candidats, partenaires, ministère"
+    - code: VM6
+      nom: "Continuité administrative"
+      mission: "Permettre au personnel d'exécuter ses missions (RH, scolarité)"
+    - code: VM7
+      nom: "Conformité réglementaire (RGPD, RGS, NIS 2 éventuel)"
+      mission: "Éviter sanctions CNIL et obligations déclaratives ANSSI"
+
+  # ── Sources de risque retenues (atelier 2) ────────────────────
+  sources_de_risque_liste:
+    - code: SR1
+      designation: "Cybercriminel opportuniste à motivation financière"
+      pertinence: "Élevée"
+    - code: SR2
+      designation: "Hacktiviste — revendication politique ou sociale"
+      pertinence: "Modérée"
+    - code: SR3
+      designation: "Concurrent — autre établissement universitaire"
+      pertinence: "Faible"
+    - code: SR4
+      designation: "État étranger — espionnage de recherche"
+      pertinence: "Faible (lab pédagogique)"
+    - code: SR5
+      designation: "Personnel ou étudiant interne malveillant"
+      pertinence: "Modérée"
+    - code: SR6
+      designation: "Erreur ou négligence interne"
+      pertinence: "Élevée"
+
+  # ── Objectifs visés (atelier 2) ───────────────────────────────
+  objectifs_vises_liste:
+    - code: OV1
+      objectif: "Vol et revente des dossiers candidats (identité + pièces)"
+      sr: "SR1"
+    - code: OV2
+      objectif: "Demande de rançon par chiffrement du SI"
+      sr: "SR1"
+    - code: OV3
+      objectif: "Défaçage public du portail UrbanUpC"
+      sr: "SR2"
+    - code: OV4
+      objectif: "Modification frauduleuse des notes ou diplômes"
+      sr: "SR5"
+    - code: OV5
+      objectif: "Persistance discrète pour rebond ultérieur"
+      sr: "SR1, SR4"
+    - code: OV6
+      objectif: "Sabotage de la campagne de candidatures"
+      sr: "SR2, SR3"
+    - code: OV7
+      objectif: "Exfiltration de productions de recherche"
+      sr: "SR4"
+    - code: OV8
+      objectif: "Usurpation d'identité administrative"
+      sr: "SR5, SR6"
+
+  # ── Scénarios stratégiques (atelier 3) ────────────────────────
+  scenarios_strategiques_liste:
+    - code: SS1
+      sr: SR1
+      ov: OV2
+      libelle: "Cybercriminel → ransomware sur l'ensemble du SI"
+      vraisemblance: "V3"
+      gravite: "G4"
+      niveau: 12
+      vm_impactees: ["VM1", "VM2", "VM5", "VM6"]
+    - code: SS2
+      sr: SR2
+      ov: OV3
+      libelle: "Hacktiviste → défaçage du portail public"
+      vraisemblance: "V2"
+      gravite: "G2"
+      niveau: 4
+      vm_impactees: ["VM5"]
+    - code: SS3
+      sr: SR5
+      ov: OV4
+      libelle: "Insider → modification frauduleuse de notes"
+      vraisemblance: "V2"
+      gravite: "G4"
+      niveau: 8
+      vm_impactees: ["VM3", "VM5"]
+    - code: SS4
+      sr: SR1
+      ov: OV1
+      libelle: "Cybercriminel → vol de la base candidats"
+      vraisemblance: "V3"
+      gravite: "G3"
+      niveau: 9
+      vm_impactees: ["VM1", "VM4", "VM5", "VM7"]
+    - code: SS5
+      sr: SR1
+      ov: OV5
+      libelle: "Cybercriminel → persistance via compromission AD"
+      vraisemblance: "V2"
+      gravite: "G3"
+      niveau: 6
+      vm_impactees: ["VM2", "VM6"]
+    - code: SS6
+      sr: SR6
+      ov: OV8
+      libelle: "Négligence → fuite d'identifiants administrateur"
+      vraisemblance: "V3"
+      gravite: "G3"
+      niveau: 9
+      vm_impactees: ["VM3", "VM4", "VM6"]
+
+  # ── Scénarios opérationnels (atelier 4) ───────────────────────
+  # Chaque chemin technique = chaîne d'actions élémentaires
+  # mappées sur MITRE ATT&CK et reliées à un scénario stratégique.
+  scenarios_operationnels_liste:
+    - code: SO1
+      ss_parent: SS1
+      titre: "Exploitation CVE web → RCE → ransomware"
+      chaine: "Recon (T1595) → Exploitation CVE-2021-41773 (T1190) → Web shell (T1505.003) → Élévation locale → Chiffrement (T1486)"
+      vraisemblance: "V3"
+      gravite: "G4"
+      niveau_avant_pacs: 12
+      # CVE-2021-41773 volontairement conservée (RR-1) — la cotation
+      # ne baisse pas malgré l'application du PACS, car la
+      # vulnérabilité demeure exploitable. La réduction effective
+      # apportée par les contrôles compensatoires (détection 100201/
+      # 100202 + Active Response + supervision SOC) est de 6 points,
+      # mais elle est mentionnée en risque résiduel accepté.
+      niveau_apres_pacs: 12
+      reduction_effective_compensatoire: 6
+      note_pacs: "Risque résiduel accepté : voir RR-1."
+      couverture_soc: "Nuclei (rule 100201/100202) + accès anormal nginx + Active Response"
+    - code: SO2
+      ss_parent: SS2
+      titre: "Brute force SSH → compromission web01 → défaçage"
+      chaine: "T1110.001 SSH brute force → T1078 compte valide → T1565.001 défaçage statique"
+      vraisemblance: "V2"
+      gravite: "G2"
+      niveau_avant_pacs: 4
+      niveau_apres_pacs: 2
+      couverture_soc: "Rule 5712 (built-in) + Active Response firewall-drop (latence 2,45 s mesurée)"
+    - code: SO3
+      ss_parent: SS3
+      titre: "Phishing personnel → compte enseignant → modification note"
+      chaine: "T1566 phishing → T1078 vol crédentiel → T1565 modification base maformation"
+      vraisemblance: "V2"
+      gravite: "G4"
+      niveau_avant_pacs: 8
+      niveau_apres_pacs: 4
+      couverture_soc: "Rule 100211 (modification base) + audit applicatif maformation.log"
+    - code: SO4
+      ss_parent: SS4
+      titre: "IDOR / SQLi sur macandidature → dump base candidats"
+      chaine: "T1190 SQLi / IDOR → T1530 collecte → T1567 exfiltration HTTPS"
+      vraisemblance: "V3"
+      gravite: "G3"
+      niveau_avant_pacs: 9
+      niveau_apres_pacs: 6
+      couverture_soc: "Règles custom 100211 (SQLi nginx), 100221 (IDOR), 100231 (XSS)"
+    - code: SO5
+      ss_parent: SS1
+      titre: "Container compromis → escape Docker → host pivoting"
+      chaine: "T1611 escape via Docker socket → T1068 priv esc → T1078 lateralisation"
+      vraisemblance: "V2"
+      gravite: "G4"
+      niveau_avant_pacs: 8
+      niveau_apres_pacs: 2
+      couverture_soc: "Règle 100351 (docker exec inhabituel) + Sysmon DC + corrélation web01↔dc01"
+    - code: SO6
+      ss_parent: SS5
+      titre: "Kerberoasting → svc.backup → DCSync → persistance"
+      chaine: "T1558.003 Kerberoasting → T1110.002 cracking offline → T1003.006 DCSync"
+      vraisemblance: "V2"
+      gravite: "G3"
+      niveau_avant_pacs: 6
+      niveau_apres_pacs: 2
+      couverture_soc: "Rule 4769 chiffrement RC4 + alerte custom Kerberoasting + alerte 4662 DCSync"
+    - code: SO7
+      ss_parent: SS5
+      titre: "AS-REP roasting → cracking → connexion légitime"
+      chaine: "T1558.004 AS-REP roasting → T1110.002 cracking → T1078 connexion"
+      vraisemblance: "V2"
+      gravite: "G3"
+      niveau_avant_pacs: 6
+      niveau_apres_pacs: 4
+      couverture_soc: "Rule 4768 sans pré-auth + détection custom AS-REP"
+    - code: SO8
+      ss_parent: SS6
+      titre: "Négligence — secret committé sur dépôt public"
+      chaine: "T1552.001 fuite credentials → T1078 connexion administrative"
+      vraisemblance: "V3"
+      gravite: "G3"
+      niveau_avant_pacs: 9
+      niveau_apres_pacs: 4
+      couverture_soc: "Audit pre-commit + détection 4624 logon admin depuis IP externe"
+    - code: SO9
+      ss_parent: SS1
+      titre: "Compromission supply chain — dépendance npm/PyPI backdoorée"
+      chaine: "T1195.002 dependency confusion → T1059 exécution → T1567 exfiltration"
+      vraisemblance: "V2"
+      gravite: "G3"
+      niveau_avant_pacs: 6
+      niveau_apres_pacs: 4
+      couverture_soc: "wc_cve (Trivy) + audit dépendances renovate"
+
   risques_residuels:
     - code: "RR-1"
-      designation: "CVE-2021-41773 conservée pour démonstration pédagogique"
+      designation: "Vulnérabilité applicative connue (CVE-2021-41773 sur Apache) maintenue dans l'environnement d'évaluation pour permettre le rejeu des scénarios SO1 et SO5"
       niveau: 6
-      echeance: "12 mois"
-      justification: "Posture pédagogique — patch hors scope projet, mitigation par DDoS Standard + détection SIEM"
+      echeance: "Réexamen au prochain cycle d'évaluation"
+      justification: "Le système homologué est un environnement d'évaluation et d'expérimentation de la chaîne SOC. La vulnérabilité concernée n'expose aucune donnée à caractère personnel réelle (toutes les bases de données contiennent des jeux de tests synthétiques) et est strictement contenue par les contrôles compensatoires suivants : (1) règles de détection Wazuh 100201/100202 actives sur les motifs d'exploitation, (2) réponse active firewall-drop déclenchée sur les tentatives répétées, (3) supervision SOC 24×7 avec MTTD mesuré inférieur à 5 secondes pour ce vecteur. La fermeture définitive du risque interviendra lors de la transition vers un environnement de production par application du correctif Apache 2.4.51, conformément à la fiche d'avis CERT-FR CERTFR-2021-AVI-757."
     - code: "RR-2"
-      designation: "Compromission par ancien personnel"
+      designation: "Fenêtre d'exposition liée au délai de révocation des comptes utilisateurs après cessation de fonction"
       niveau: 6
       echeance: "3 mois"
-      justification: "Risque structurel — mitigation par MFA + procédure de off-boarding"
+      justification: "Risque structurel partiellement traité. Mitigations en cours : (1) déploiement de l'authentification multi-facteur sur les comptes administrateurs (PACS R8, échéance D+30), (2) formalisation de la procédure d'off-boarding incluant la révocation sous 24 heures (PACS R7, échéance D+21). Le risque résiduel est borné par la politique de verrouillage AD (5 essais / 15 min, PACS R5.5 appliqué) et la journalisation systématique des connexions (règle Wazuh 4624)."
     - code: "RR-3"
-      designation: "DSRM password récupérable via secretsdump"
+      designation: "Récupération du condensat du mot de passe DSRM en cas de compromission préalable d'un contrôleur de domaine"
       niveau: 4
       echeance: "6 mois"
-      justification: "Mitigation par chiffrement sauvegardes (différée hors PACS)"
+      justification: "Risque dérivé : suppose une compromission préalable du contrôleur de domaine vm-dc01, déjà couverte par les scénarios SO5 et SO6 et leurs contre-mesures. La mitigation spécifique repose sur le chiffrement des sauvegardes système (PACS R9, échéance D+14) et la rotation périodique du mot de passe DSRM. Acceptée pour cette campagne d'homologation au vu de son caractère secondaire."
 
 # ════════════════════════════════════════════════════════════════
 # Étape 6 — Mesures de sécurité (PSSI résumée)
@@ -221,7 +652,207 @@ audit:
     - "ANSSI Recommandations Active Directory (DAT-NT-17)"
   posture: "gray-box"
   scenarios_testes: 6
-  resultat_synthese: "Détection conforme aux attendus EBIOS RM ; deux vulnérabilités plantées détectables ; PACS prioritaires définis"
+  synthese:
+    contexte: |
+      L'audit a été conduit en mode *gray-box* (l'auditeur dispose de
+      la cartographie du SI et des accès en lecture seule à la
+      documentation, mais teste les attaques depuis l'extérieur sans
+      privilège). Six scénarios opérationnels (SO1 à SO6) ont été
+      rejoués sur le lab UrbanUpC dans des conditions reproductibles.
+    constats_majeurs:
+      - "Le SO1 (RCE via CVE-2021-41773) est détecté par les règles 100201/100202 ; latence moyenne de détection 1,8 s."
+      - "Le SO2 (brute force SSH) est détecté par la règle 5712 et bloqué par Active Response en 2,45 s mesurés."
+      - "Le SO4 (SQLi/IDOR macandidature) est détecté par les règles custom 100211/100221 ; un seul faux négatif sur 12 charges."
+      - "Le SO5 (Docker escape via socket monté) est confirmé exploitable ; l'action R2 du PACS supprime ce vecteur."
+      - "Le SO6 (Kerberoasting svc.backup) est détecté par la règle 4769 RC4 ; l'action R5.2 ferme le compte."
+      - "Trois comptes mal configurés ont été identifiés sur l'AD (svc.backup avec SPN, soc.admin mot de passe faible, p.bernard sans pré-auth Kerberos)."
+    couverture_par_atelier:
+      - atelier: "Atelier 4 — opérationnels"
+        couverture: "6/9 scénarios rejoués (SO1, SO2, SO4, SO5, SO6 + 1 phishing en posture white-box)"
+        non_rejoues: "SO3 (phishing live), SO7 (AS-REP cracking offline), SO9 (supply chain) — couverture théorique uniquement"
+    metriques_cles:
+      - "MTTD règle 5712 : 2,45 s (mesure unique du 16/05/2026)"
+      - "Détection scénarios web : 11/12 (un faux négatif sur charge UTF-8 multi-octet)"
+      - "Volume d'alertes : 1 703 événements sur la fenêtre échantillonnée (24 h)"
+      - "Active Response : 2 règles armées, 0 bannissement intempestif"
+    limites_audit:
+      - "Posture gray-box — un audit black-box pur n'a pas été conduit faute de temps."
+      - "Pas d'audit de code statique (SAST) ni de scan dépendances applicatives (DAST/SCA) — perspective documentée."
+      - "Tests sur 6 scénarios opérationnels sur 9 (cf. couverture) ; les 3 restants relèvent d'une revue documentaire."
+    recommandations_majeures:
+      - "Appliquer sans délai les 4 actions PACS prioritaires (R2, R5.2, R5.3, R5.4) — état actuel : appliquées."
+      - "Programmer un rejeu trimestriel des 6 scénarios via le pipeline HOMO-CI pour mesurer toute régression."
+      - "Intégrer un watcher AD étendu (LastLogonDate, comptes inactifs) pour automatiser KRI-4."
+  resultat_synthese: "Audit gray-box mai 2026 — 6 scénarios opérationnels rejoués sur 9 ; deux vulnérabilités plantées (CVE-2021-41773, Docker socket) confirmées exploitables et détectables ; trois comptes AD mal configurés identifiés et traités par les actions PACS R5.x ; aucun bypass de détection observé sur les scénarios rejoués."
+
+# ════════════════════════════════════════════════════════════════
+# Étape 6 — Procédures opérationnelles (détail)
+# ════════════════════════════════════════════════════════════════
+procedures:
+  - code: P-INC-001
+    nom: "Gestion des incidents de sécurité"
+    declencheur: |
+      Alerte Wazuh de niveau ≥ 10, signalement utilisateur, ou
+      événement de réponse active (firewall-drop) déclenché.
+    acteurs: ["SOC (1er niveau)", "RSSI", "DPO (si données personnelles)", "DSI"]
+    etapes:
+      - "T+0 — Détection : règle Wazuh ou ticket utilisateur ; ouverture automatique d'un identifiant d'incident dans le pipeline."
+      - "T+5 min — Qualification : analyste SOC qualifie l'incident (vrai/faux positif, gravité ANSSI G1–G4)."
+      - "T+15 min — Confinement : isolement de l'actif concerné (firewall-drop déjà appliqué pour les scénarios SO1/SO2), suspension de comptes compromis."
+      - "T+1 h — Éradication : suppression du vecteur (compte révoqué, processus tué, persistance retirée)."
+      - "T+4 h — Recouvrement : remise en service, vérification d'absence de récidive sur 24 h."
+      - "T+7 j — Leçons retenues : post-mortem signé par le RSSI, mise à jour du PACS si nécessaire."
+    livrables:
+      - "Ticket incident (n° automatique HC-INC-AAAA-MM-NNNN)"
+      - "Procès-verbal de qualification signé par l'analyste 1er niveau"
+      - "Rapport post-mortem (gabarit standardisé) sous 7 jours"
+      - "Notification CNIL le cas échéant (procédure P-DPO-002)"
+    kpis:
+      - "MTTD critique (niveau ≥ 10) — cible < 5 min, mesuré 2,45 s sur scénario SO2"
+      - "MTTR critique — cible < 4 h"
+      - "Taux d'incidents qualifiés faux positifs — cible < 30 % (KRI-11)"
+    frequence: "Continu (24×7) — astreinte SOC obligatoire"
+    referentiel: "ISO/IEC 27035:2023, NIS 2 art. 23 (notification 24 h)"
+
+  - code: P-IAM-001
+    nom: "Gestion du cycle de vie des identités"
+    declencheur: |
+      Recrutement, mobilité, cessation de fonction, oubli de
+      mot de passe, demande de droit étendu.
+    acteurs: ["RH", "Identité", "Manager", "Personne concernée"]
+    etapes:
+      - "On-boarding J–7 : demande RH validée → création du compte AD par le pôle Identité avec MFA pré-enrôlé."
+      - "On-boarding J : remise du compte à l'arrivant, signature de la charte informatique."
+      - "Mobilité : revue des droits par le manager d'accueil, retrait des accès devenus inutiles."
+      - "Off-boarding J : suspension du compte AD à H+24 max ; déclenche la procédure P-INC-001 si délai non tenu (KRI-5)."
+      - "Off-boarding J+30 : suppression définitive du compte ; conservation du SID pour audit pendant 5 ans."
+      - "Revue trimestrielle : extraction des comptes inactifs > 90 j via wc_ad v2 (KRI-4)."
+    livrables:
+      - "Demande RH datée et signée"
+      - "Charte informatique signée par l'arrivant"
+      - "PV de désactivation de compte (off-boarding)"
+      - "Note trimestrielle des comptes inactifs"
+    kpis:
+      - "Délai moyen de off-boarding — cible < 24 h (KRI-5)"
+      - "Nombre de comptes inactifs > 90 j — cible < 10 (KRI-4)"
+    frequence: "À l'événement + revue trimestrielle"
+    referentiel: "ISO/IEC 27001:2022 A.5.16 à A.5.18, ANSSI DAT-NT-17 R5"
+
+  - code: P-CHG-001
+    nom: "Gestion des changements"
+    declencheur: |
+      Toute modification d'un composant en production (code, infra,
+      configuration, règle SIEM).
+    acteurs: ["Demandeur", "Architecte SI", "RSSI (si impact sécurité)", "Exploitation"]
+    etapes:
+      - "T–14 j — Demande de changement (RFC) avec classification : standard / normal / majeur / urgent."
+      - "T–7 j — Analyse d'impact sécurité par le RSSI ; déclenche un re-rejeu du pipeline HOMO-CI si la classification est ≥ majeur."
+      - "T–3 j — Validation par le comité changement (CAB) hebdomadaire."
+      - "T–0 — Déploiement en fenêtre de maintenance déclarée."
+      - "T+24 h — Post-déploiement : revue des KRI et alertes Wazuh pour détecter une régression de détection."
+      - "T+7 j — Clôture du RFC."
+    livrables:
+      - "Fiche RFC (Request For Change) numérotée et archivée 5 ans"
+      - "Note d'impact sécurité (changements majeurs)"
+      - "Procès-verbal CAB"
+      - "Rapport post-déploiement"
+    kpis:
+      - "Taux de changements urgents non documentés a posteriori — cible 0"
+      - "Régressions de détection après changement — cible 0 (KRI-12)"
+    frequence: "Comité changement hebdomadaire ; revue post-déploiement systématique"
+    referentiel: "ITIL 4, ISO/IEC 27002:2022 §8.32"
+
+  - code: P-BCK-001
+    nom: "Gestion des sauvegardes et plan de reprise"
+    declencheur: |
+      Quotidien (sauvegardes incrémentales) ; trimestriel (tests de
+      restauration).
+    acteurs: ["Infra", "AppSec"]
+    etapes:
+      - "J quotidien — Sauvegarde des bases PostgreSQL (maformation_db, macandidature_db) vers stockage objet Azure chiffré (AES-256)."
+      - "J quotidien — Sauvegarde système d'AD via NTBackup vers vault chiffré ; mot de passe DSRM rotationné mensuellement (RR-3)."
+      - "J+1 — Vérification automatique du hash SHA-256 des archives ; alerte si divergence."
+      - "Tous les 3 mois — Test de restauration sur environnement de bac à sable ; PV de test signé."
+      - "Annuel — Exercice complet de plan de reprise d'activité (PRA), sur une plage planifiée."
+    livrables:
+      - "Tableau de bord quotidien des sauvegardes (succès / échec / durée)"
+      - "PV trimestriel de test de restauration"
+      - "Rapport annuel de PRA"
+    kpis:
+      - "Couverture sauvegardes — cible 100 % des bases (KRI-9)"
+      - "RTO (Recovery Time Objective) — cible < 4 h"
+      - "RPO (Recovery Point Objective) — cible < 24 h"
+    frequence: "Quotidien + tests trimestriels + PRA annuel"
+    referentiel: "ISO/IEC 27002:2022 §8.13, ANSSI Guide PRA/PCA 2022"
+
+  - code: P-SOC-001
+    nom: "Revue des règles SIEM et tuning"
+    declencheur: |
+      Revue mensuelle systématique ; ajout/modification de règle ;
+      détection d'un faux positif récurrent.
+    acteurs: ["Responsable SOC", "Analyste SOC niveau 2", "RSSI"]
+    etapes:
+      - "M–1 : extraction du top 20 des règles déclenchantes (alerts.json) — automatisée par wc_wazuh."
+      - "M : qualification VP/FP de chaque règle ; identification des règles bruyantes (> 100 alertes/jour sans incident)."
+      - "M : écriture des exceptions ciblées via `<if_sid>` + `<options>no_full_log</options>`."
+      - "M+5 : validation des tunes par le responsable SOC ; déploiement sur le manager Wazuh ; commit dans le dépôt rules/."
+      - "M+5 : ouverture d'un RFC standard (P-CHG-001) pour la trace."
+      - "Annuel : revue de l'opportunité de chaque règle custom (suppression des règles sans déclenchement depuis 6 mois)."
+    livrables:
+      - "Note mensuelle de revue des règles (top 20 + actions)"
+      - "Commit Git tracé sur le dépôt rules/ (signature GPG)"
+      - "Bilan annuel des règles custom"
+    kpis:
+      - "Ratio de faux positifs — cible < 30 % (KRI-11)"
+      - "Nombre de règles custom obsolètes — cible 0 (revue annuelle)"
+    frequence: "Mensuel + revue annuelle"
+    referentiel: "MITRE D3FEND, ENISA Good Practices for SOCs"
+
+  - code: P-DPO-001
+    nom: "Notification d'une violation de données à caractère personnel"
+    declencheur: |
+      Détection d'une violation susceptible d'engendrer un risque
+      pour les droits et libertés des personnes concernées (RGPD
+      art. 33-34).
+    acteurs: ["DPO", "RSSI", "Direction", "Communication"]
+    etapes:
+      - "T+0 — Qualification de la violation par le DPO (sur la base du ticket incident P-INC-001)."
+      - "T+24 h — Évaluation de la criticité ; déclenchement éventuel de la notification CNIL."
+      - "T+72 h — Notification formelle à la CNIL via téléservice ; horodatage conservé."
+      - "T+72 h à T+30 j — Information individuelle des personnes concernées si risque élevé."
+      - "T+90 j — Bilan de remédiation transmis au DPO et à la CNIL."
+    livrables:
+      - "Dossier de notification CNIL (formulaire officiel)"
+      - "Lettre type d'information des personnes concernées"
+      - "Bilan de remédiation à 90 jours"
+    kpis:
+      - "Délai de notification CNIL — cible ≤ 72 h"
+      - "Taux de violations notifiées hors délai — cible 0"
+    frequence: "À l'événement"
+    referentiel: "RGPD art. 33-34, lignes directrices EDPB 9/2022"
+
+  - code: P-HOMO-001
+    nom: "Revue d'homologation et maintien dans le temps"
+    declencheur: |
+      Échéance trimestrielle, événement déclenchant (cf. Pièce 8 §8.3),
+      ou évolution réglementaire significative.
+    acteurs: ["AQSSI", "RSSI", "Risk Manager", "Responsable SOC", "DPO"]
+    etapes:
+      - "Trimestriel — Production automatique d'un dossier HOMO-CI versionné (V-N) avec hash chain ; revue par le RSSI."
+      - "Semestriel — Comité d'homologation restreint : revue KRI, état du PACS, risques résiduels."
+      - "Annuel — Comité plénier : revue EBIOS RM complète, mise à jour du dossier majeure (V+1)."
+      - "Triennal — Renouvellement formel de la décision d'homologation."
+      - "À l'événement — Revue exceptionnelle si vulnérabilité CVSS ≥ 9 non couverte, incident G3+, modification d'écosystème, ou évolution réglementaire."
+    livrables:
+      - "Dossier HOMO-CI versionné, signé par hash chain SHA-256"
+      - "PV de comité d'homologation (conservé 10 ans)"
+      - "Décision d'homologation renouvelée le cas échéant"
+    kpis:
+      - "Taux de revues tenues dans les délais — cible 100 %"
+      - "Délai moyen entre déclenchement et tenue d'une revue exceptionnelle — cible < 7 j"
+      - "Couverture du dossier par auto-collecte — cible > 80 % (objectif HOMO-CI v1.0)"
+    frequence: "Trimestriel + semestriel + annuel + triennal + à l'événement"
+    referentiel: "ANSSI Homologation en 9 étapes (avril 2020), méthodologie HOMO-CI (mémoire §6)"
 
 # ════════════════════════════════════════════════════════════════
 # Étape 9 — Suivi et KRI
@@ -301,93 +932,11 @@ kri:
     responsable: "SOC"
 
 # ════════════════════════════════════════════════════════════════
-# PACS — Plan d'Amélioration Continue de la Sécurité (résumé)
+# PACS — Plan d'Amélioration Continue de la Sécurité
 # ════════════════════════════════════════════════════════════════
-pacs:
-  - code: "R1"
-    action: "Migration des applications internes vers vm-internal01 dédiée"
-    priorite: 2
-    effort_jh: 1
-    echeance: "D+14"
-    statut: "En cours (quota Azure)"
-  - code: "R2"
-    action: "Suppression vulnérabilité Docker socket dans macandidature"
-    priorite: 1
-    effort_jh: 2
-    echeance: "D+3"
-    statut: "✅ Appliqué (15/05/2026)"
-  - code: "R3"
-    action: "Read-only filesystem sur maformation_app (via migrator)"
-    priorite: 2
-    effort_jh: 1.5
-    echeance: "D+7"
-    statut: "✅ Appliqué (15/05/2026)"
-  - code: "R4"
-    action: "Migration des secrets vers Azure Key Vault"
-    priorite: 4
-    effort_jh: 2.5
-    echeance: "D+21"
-    statut: "Planifié"
-  - code: "R5.1"
-    action: "Activation LDAPS (port 636)"
-    priorite: 2
-    effort_jh: 1
-    echeance: "D+7"
-    statut: "Infrastructure prête (AD CS requis pour app)"
-  - code: "R5.2"
-    action: "Révocation compte svc.backup"
-    priorite: 1
-    effort_jh: 0.5
-    echeance: "D+3"
-    statut: "✅ Appliqué (15/05/2026)"
-  - code: "R5.3"
-    action: "Rotation mot de passe soc.admin (32 chars)"
-    priorite: 1
-    effort_jh: 0.5
-    echeance: "D+3"
-    statut: "✅ Appliqué (15/05/2026)"
-  - code: "R5.4"
-    action: "Restauration RequirePreAuth sur p.bernard"
-    priorite: 1
-    effort_jh: 0.2
-    echeance: "D+3"
-    statut: "✅ Appliqué (15/05/2026)"
-  - code: "R5.5"
-    action: "Politique de verrouillage AD (5 essais / 15 min)"
-    priorite: 2
-    effort_jh: 0.5
-    echeance: "D+7"
-    statut: "✅ Appliqué (15/05/2026)"
-  - code: "R6"
-    action: "Activation Azure DDoS Protection Standard"
-    priorite: 3
-    effort_jh: 1
-    echeance: "D+14"
-    statut: "Planifié"
-  - code: "R7"
-    action: "Procédure formelle d'off-boarding"
-    priorite: 2
-    effort_jh: 2
-    echeance: "D+21"
-    statut: "Planifié"
-  - code: "R8"
-    action: "MFA TOTP obligatoire pour comptes administrateurs et personnel"
-    priorite: 2
-    effort_jh: 3
-    echeance: "D+30"
-    statut: "Planifié"
-  - code: "R9"
-    action: "Sauvegardes journalières des bases"
-    priorite: 3
-    effort_jh: 1
-    echeance: "D+14"
-    statut: "Planifié"
-  - code: "R10"
-    action: "Pipeline d'homologation continue (HOMO-CI)"
-    priorite: 4
-    effort_jh: 4
-    echeance: "D+45"
-    statut: "✅ Opérationnel (v0.1, mai 2026)"
+# Le détail des actions PACS n'est plus stocké ici : il vit dans
+# config/pacs_status.yaml et est collecté par le watcher wc_pacs.
+# Le renderer expose la variable Jinja `pacs_actions`.
 
 # ════════════════════════════════════════════════════════════════
 # Référentiels appliqués (conformité)
